@@ -168,6 +168,35 @@ function runStop() {
   }
 }
 
+function runReload() {
+  console.log("[mcp] Reloading server...");
+
+  if (fs.existsSync(PID_FILE_PATH)) {
+    const pidStr = fs.readFileSync(PID_FILE_PATH, "utf8").trim();
+    const pid = parseInt(pidStr, 10);
+    if (!isNaN(pid)) {
+      try {
+        process.kill(pid, "SIGTERM");
+        console.log(`[mcp] Stopped existing server (PID: ${pid}).`);
+      } catch (e: any) {
+        // Ignored if the process is not actually running
+      }
+    }
+  }
+
+  // Wait briefly for the port to be fully released before spawning the new instance
+  setTimeout(() => {
+    const child = spawn(process.argv[0], [process.argv[1], "serve"], {
+      detached: true,
+      stdio: "ignore"
+    });
+
+    child.unref();
+    console.log(`[mcp] Server restarted successfully and is running in the background (New PID: ${child.pid}).`);
+    process.exit(0);
+  }, 1000);
+}
+
 function runStatus() {
   if (!fs.existsSync(PID_FILE_PATH)) {
     console.log("🔴 superskills-mcp is currently NOT running.");
@@ -218,6 +247,7 @@ Commands:
   serve     Start the MCP server (reads config from ~/.superskills/mcp-config.json by default)
   list      List all currently registered skills
   stop      Stop a running MCP server
+  reload    Smoothly restart the MCP server to apply new configuration changes
   status    Check if the MCP server is currently running
   log       Follow the real-time server logs
 
@@ -246,6 +276,9 @@ async function main() {
       break;
     case "stop":
       runStop();
+      break;
+    case "reload":
+      runReload();
       break;
     case "status":
       runStatus();

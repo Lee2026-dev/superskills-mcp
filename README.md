@@ -43,6 +43,12 @@ Stop the server:
 superskills-mcp stop
 ```
 
+Reload the server (apply config changes instantly in the background):
+
+```bash
+superskills-mcp reload
+```
+
 ---
 
 ## 2. Register Your Skills
