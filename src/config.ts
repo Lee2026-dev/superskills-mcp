@@ -69,6 +69,9 @@ export function loadConfig(): { global: MultiSkillConfig; skills: ResolvedSkill[
     )
   };
 
+  // Sync back to raw so SkillScanner/dynamic skills get resolved values
+  raw.defaults = defaults;
+
   if (!raw.skills || (raw.skills.length === 0 && (!raw.scanRoots || raw.scanRoots.length === 0))) {
     throw new Error("Config must contain at least one skill in the 'skills' array or 'scanRoots'.");
   }
