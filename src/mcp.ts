@@ -4,8 +4,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
 import { z, ZodRawShape } from "zod";
-import { MultiSkillConfig, ResolvedSkill } from "./types.js";
+import { MultiSkillConfig, ResolvedSkill, DashboardRegistry } from "./types.js";
 import { runSkill } from "./runner.js";
+import { createDashboardRouter } from "./dashboard.js";
+
 
 /** 将 InputFieldSchema 定义转换为 Zod schema shape */
 function buildZodShape(input: ResolvedSkill["input"]): ZodRawShape {
@@ -38,16 +40,26 @@ function buildZodShape(input: ResolvedSkill["input"]): ZodRawShape {
 
 export function createMcpServer(
   globalConfig: MultiSkillConfig,
-  skills: ResolvedSkill[]
+  skills: ResolvedSkill[],
+  registry?: DashboardRegistry
 ): McpServer {
   const server = new McpServer({
     name: globalConfig.server.name,
     version: globalConfig.server.version
   });
 
-  for (const skill of skills) {
+  const enabledSkills = registry ? skills.filter(s => registry.get(s.name)?.enabled !== false) : skills;
+
+  for (const skill of enabledSkills) {
     const shape = buildZodShape(skill.input);
     server.tool(skill.name, skill.description, shape, async (toolArgs) => {
+      if (registry) {
+        const meta = registry.get(skill.name);
+        if (meta) {
+          meta.callCount++;
+          registry.set(skill.name, meta);
+        }
+      }
       try {
         const markdown = await runSkill(skill, toolArgs as Record<string, unknown>);
         return {
@@ -77,15 +89,23 @@ export async function startStdio(
 
 export async function startHttp(
   globalConfig: MultiSkillConfig,
-  skillsOrGetter: ResolvedSkill[] | (() => ResolvedSkill[])
+  skillsOrGetter: ResolvedSkill[] | (() => ResolvedSkill[]),
+  registry?: DashboardRegistry
 ): Promise<void> {
   const cfg = globalConfig.server;
   const app = express();
   app.use(express.json({ limit: "4mb" }));
 
+  if (registry) {
+    app.use("/dashboard", createDashboardRouter(
+      typeof skillsOrGetter === "function" ? skillsOrGetter : () => skillsOrGetter,
+      registry
+    ));
+  }
+
   app.post("/mcp", async (req, res) => {
     const skills = typeof skillsOrGetter === "function" ? skillsOrGetter() : skillsOrGetter;
-    const server = createMcpServer(globalConfig, skills);
+    const server = createMcpServer(globalConfig, skills, registry);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
     });
