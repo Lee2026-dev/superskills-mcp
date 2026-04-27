@@ -2,11 +2,14 @@
 // src/index.ts
 import fs from "node:fs";
 import path from "node:path";
+import util from "node:util";
+import { spawn } from "node:child_process";
 import { loadConfig, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_PATH } from "./config.js";
 import { assertSafeSkills } from "./security.js";
 import { startHttp, startStdio } from "./mcp.js";
 
 const PID_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "server.pid");
+const LOG_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "mcp.log");
 
 const DEFAULT_CONFIG_CONTENT = JSON.stringify({
   server: {
@@ -44,7 +47,27 @@ const DEFAULT_CONFIG_CONTENT = JSON.stringify({
   ]
 }, null, 2);
 
+function setupLogging() {
+  const logStream = fs.createWriteStream(LOG_FILE_PATH, { flags: 'a' });
+  const originalLog = console.log;
+  const originalError = console.error;
+
+  const getTimestamp = () => new Date().toISOString();
+
+  console.log = (...args: any[]) => {
+    originalLog.apply(console, args);
+    logStream.write(`[${getTimestamp()}] [INFO] ${util.format(...args)}\n`);
+  };
+
+  console.error = (...args: any[]) => {
+    originalError.apply(console, args);
+    logStream.write(`[${getTimestamp()}] [ERROR] ${util.format(...args)}\n`);
+  };
+}
+
 async function runServe() {
+  setupLogging();
+  
   const { global: globalConfig, skills } = loadConfig();
   assertSafeSkills(skills);
 
@@ -160,7 +183,6 @@ function runStatus() {
   }
 
   try {
-    // 检查进程是否存在
     process.kill(pid, 0);
     console.log(`🟢 superskills-mcp is currently RUNNING (PID: ${pid}).`);
   } catch (e: any) {
@@ -170,6 +192,21 @@ function runStatus() {
       console.log(`🟡 superskills-mcp status is UNKNOWN (PID: ${pid}, Error: ${e.message}).`);
     }
   }
+}
+
+function runLog() {
+  if (!fs.existsSync(LOG_FILE_PATH)) {
+    console.error(`[mcp] No log file found at ${LOG_FILE_PATH}`);
+    process.exit(1);
+  }
+
+  console.log(`\x1b[36mFollowing logs from ${LOG_FILE_PATH} (Press Ctrl+C to exit)...\x1b[0m\n`);
+  const tail = spawn("tail", ["-f", LOG_FILE_PATH], { stdio: "inherit" });
+  
+  tail.on("error", (err) => {
+    console.error(`[mcp] Failed to tail log file: ${err.message}`);
+    process.exit(1);
+  });
 }
 
 function printHelp() {
@@ -182,6 +219,7 @@ Commands:
   list      List all currently registered skills
   stop      Stop a running MCP server
   status    Check if the MCP server is currently running
+  log       Follow the real-time server logs
 
 Options for 'serve' & 'list':
   --config <path>      Path to custom config JSON
@@ -211,6 +249,9 @@ async function main() {
       break;
     case "status":
       runStatus();
+      break;
+    case "log":
+      runLog();
       break;
     default:
       printHelp();
