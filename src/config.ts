@@ -45,6 +45,13 @@ export function loadConfig(): { global: MultiSkillConfig; skills: ResolvedSkill[
 
   const raw = JSON.parse(fs.readFileSync(configPath, "utf8")) as MultiSkillConfig;
 
+  // Expand ~ in scanRoots
+  if (raw.scanRoots) {
+    raw.scanRoots = raw.scanRoots.map(p => 
+      p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : path.resolve(p)
+    );
+  }
+
   const transportArg = readArg("--transport");
   const portArg = readArg("--port");
   const hostArg = readArg("--host");
@@ -62,11 +69,11 @@ export function loadConfig(): { global: MultiSkillConfig; skills: ResolvedSkill[
     )
   };
 
-  if (!Array.isArray(raw.skills) || raw.skills.length === 0) {
-    throw new Error("Config must contain at least one skill in the 'skills' array.");
+  if (!raw.skills || (raw.skills.length === 0 && (!raw.scanRoots || raw.scanRoots.length === 0))) {
+    throw new Error("Config must contain at least one skill in the 'skills' array or 'scanRoots'.");
   }
 
-  const skills: ResolvedSkill[] = raw.skills.map((s, i) => {
+  const skills: ResolvedSkill[] = (raw.skills ?? []).map((s, i) => {
     if (!s.name) throw new Error(`skills[${i}] is missing 'name'`);
     if (!s.skillDir) throw new Error(`skills[${i}] ('${s.name}') is missing 'skillDir'`);
 

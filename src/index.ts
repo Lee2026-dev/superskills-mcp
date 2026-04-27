@@ -4,9 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import util from "node:util";
 import { spawn } from "node:child_process";
+import chokidar from "chokidar";
 import { loadConfig, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_PATH } from "./config.js";
 import { assertSafeSkills } from "./security.js";
 import { startHttp, startStdio } from "./mcp.js";
+import { SkillScanner } from "./scanner.js";
+import { ResolvedSkill } from "./types.js";
 
 const PID_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "server.pid");
 const LOG_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "mcp.log");
@@ -68,15 +71,11 @@ function setupLogging() {
 async function runServe() {
   setupLogging();
   
-  const { global: globalConfig, skills } = loadConfig();
-  assertSafeSkills(skills);
+  const { global: config, skills: staticSkills } = loadConfig();
+  assertSafeSkills(staticSkills);
 
-  console.error(`[mcp] server=${globalConfig.server.name} v${globalConfig.server.version}`);
-  console.error(`[mcp] transport=${globalConfig.server.transport}`);
-  console.error(`[mcp] ${skills.length} skill(s) loaded:`);
-  for (const s of skills) {
-    console.error(`  - ${s.name} (skillDir=${s.skillDir})`);
-  }
+  console.error(`[mcp] server=${config.server.name} v${config.server.version}`);
+  console.error(`[mcp] transport=${config.server.transport}`);
 
   // Manage PID file for 'stop' command
   fs.writeFileSync(PID_FILE_PATH, process.pid.toString(), "utf8");
@@ -91,10 +90,52 @@ async function runServe() {
   process.on("SIGINT", cleanup);
   process.on("SIGTERM", cleanup);
 
-  if (globalConfig.server.transport === "http") {
-    await startHttp(globalConfig, skills);
+  const scanner = new SkillScanner(config);
+  let dynamicSkills: ResolvedSkill[] = [];
+
+  const updateDynamicSkills = () => {
+    const newSkills: ResolvedSkill[] = [];
+    if (config.scanRoots && config.scanRoots.length > 0) {
+      for (const root of config.scanRoots) {
+        newSkills.push(...scanner.scanRoot(root));
+      }
+    }
+    dynamicSkills = newSkills;
+    console.error(`[mcp] Dynamic registry updated: ${dynamicSkills.length} auto-discovered skills.`);
+  };
+
+  // Initial scan
+  updateDynamicSkills();
+
+  // Setup Watcher
+  if (config.scanSettings?.watch && config.scanRoots && config.scanRoots.length > 0) {
+    const watcher = chokidar.watch(config.scanRoots, {
+      ignoreInitial: true,
+      depth: 1,
+      ignored: config.scanSettings.ignore || ["node_modules", ".git"]
+    });
+    watcher.on("all", () => {
+      updateDynamicSkills();
+    });
+  }
+
+  const getCombinedSkills = () => {
+    // Manual skills take priority if names conflict
+    const combined = [...staticSkills];
+    const existingNames = new Set(staticSkills.map(s => s.name));
+    
+    for (const ds of dynamicSkills) {
+      if (!existingNames.has(ds.name)) {
+        combined.push(ds);
+      }
+    }
+    return combined;
+  };
+
+  if (config.server.transport === "http") {
+    await startHttp(config, getCombinedSkills);
   } else {
-    await startStdio(globalConfig, skills);
+    await startStdio(config, getCombinedSkills);
   }
 }
 

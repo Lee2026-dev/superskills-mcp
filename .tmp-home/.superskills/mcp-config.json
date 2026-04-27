@@ -1,0 +1,22 @@
+{
+  "server": {
+    "name": "test-server",
+    "version": "1.0.0",
+    "transport": "http",
+    "host": "127.0.0.1",
+    "port": 9999
+  },
+  "defaults": {
+    "timeoutMs": 30000,
+    "maxOutputBytes": 1024,
+    "runner": {
+      "command": "echo",
+      "args": ["test"]
+    }
+  },
+  "scanRoots": ["./.tmp-home/.superskills/skills"],
+  "scanSettings": {
+    "watch": true
+  },
+  "skills": []
+}
