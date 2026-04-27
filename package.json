@@ -1,15 +1,15 @@
 {
-  "name": "baoyu-x-to-markdown-mcp-server",
-  "version": "0.2.0",
-  "description": "MCP server wrapper for baoyu-danger-x-to-markdown local skill.",
+  "name": "superskills-mcp",
+  "version": "0.4.0",
+  "description": "A universal MCP gateway to expose local CLI skills to AI assistants.",
   "type": "module",
   "bin": {
-    "baoyu-x-to-markdown-mcp": "dist/index.js"
+    "superskills-mcp": "dist/index.js"
   },
   "scripts": {
-    "dev": "tsx src/index.ts --config config/baoyu-x-to-markdown.example.json",
+    "dev": "tsx src/index.ts serve",
     "build": "tsc",
-    "start": "node dist/index.js --config config/baoyu-x-to-markdown.example.json"
+    "start": "node dist/index.js serve"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.21.0",

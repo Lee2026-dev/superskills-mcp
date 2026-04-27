@@ -1,71 +1,46 @@
-# baoyu-local-skills-mcp-server
+# superskills-mcp
 
-A general-purpose MCP server that exposes your local baoyu skills as MCP tools. Any MCP client (ChatGPT, Claude Desktop, Cursor, etc.) can connect to it and call all registered skills.
+A general-purpose MCP gateway that exposes your local CLI skills to any AI assistant. Any MCP client (ChatGPT, Claude Desktop, Cursor, etc.) can connect to it and invoke your local scripts as intelligent tools.
 
 ```text
 read_x_to_markdown({ url })   ← registered automatically from config
-my_next_skill({ ... })        ← just add to skills array, zero code change
+my_custom_skill({ ... })      ← just add to skills array, zero code change
 ```
 
 ---
 
-## How It Works
+## 1. Quick Start (Global Installation)
 
-```
-MCP Client (ChatGPT / Claude / Cursor)
-    │  HTTP or stdio
-    ▼
-baoyu-local-skills-mcp-server  (this project)
-    │  reads config/skills.example.json
-    │  resolves {serverDir} → absolute path to this project
-    ▼
-scripts/mcp-adapter.ts         (built-in adapter, never copied)
-    │  receives skillDir via context
-    ▼
-bun scripts/main.ts            (your actual skill)
-```
-
-The adapter (`scripts/mcp-adapter.ts`) is **always part of this server** — you never copy it anywhere. `skillDir` is injected at runtime via the `context` field.
-
----
-
-## 1. Project Structure
-
-```
-baoyu-local-skills-mcp-server/
-  config/
-    skills.example.json       ← your skill registry
-  src/
-    index.ts                  ← entry point
-    config.ts                 ← loads + resolves config
-    security.ts               ← validates skill paths
-    runner.ts                 ← spawns adapter per tool call
-    mcp.ts                    ← registers MCP tools dynamically
-    types.ts                  ← shared TypeScript types
-  scripts/
-    mcp-adapter.ts            ← built-in adapter (do NOT copy elsewhere)
-```
-
----
-
-## 2. Install
+Install the CLI tool globally on your system:
 
 ```bash
-pnpm install
-pnpm build
+npm install -g .
+# Or via pnpm: pnpm link --global
+```
+
+Initialize your configuration file (creates `~/.superskills/mcp-config.json`):
+
+```bash
+superskills-mcp init
+```
+
+Start the server:
+
+```bash
+superskills-mcp serve
 ```
 
 ---
 
-## 3. Register Your Skills
+## 2. Register Your Skills
 
-Edit `config/skills.example.json`. To add a new skill, append to the `skills` array — **no code changes needed**.
+Open `~/.superskills/mcp-config.json`. To add a new skill, append a JSON block to the `skills` array — **no code changes needed**.
 
 ```json
 {
   "server": {
-    "name": "baoyu-local-skills-mcp",
-    "version": "0.3.0",
+    "name": "superskills-mcp",
+    "version": "0.4.0",
     "transport": "http",
     "host": "127.0.0.1",
     "port": 8787
@@ -105,71 +80,58 @@ Edit `config/skills.example.json`. To add a new skill, append to the `skills` ar
 |---|---|
 | `server.name` | Server name shown to MCP clients |
 | `server.transport` | `"http"` (for ChatGPT / remote) or `"stdio"` (for local clients) |
-| `defaults.runner.args` | `{serverDir}` is auto-replaced with this project's absolute path |
+| `defaults.runner.args` | `{serverDir}` is auto-replaced with this project's absolute installation path |
 | `skills[].skillDir` | Absolute path to your local skill directory |
 | `skills[].input` | Input schema — each field becomes a validated MCP tool parameter |
 | `skills[].env` | Environment variables forwarded to the adapter |
 
 ### Adding a new skill
 
-1. Add a new entry to `skills[]` in the config file
-2. Restart the server
+1. Add a new entry to `skills[]` in `~/.superskills/mcp-config.json`
+2. Restart the server (`superskills-mcp serve`)
 3. The new tool is automatically available to all connected MCP clients
 
 ---
 
-## 4. Run with HTTP transport
+## 3. Connect to ChatGPT (HTTP Transport)
 
-For ChatGPT or any remote MCP client:
+For ChatGPT or any remote MCP client, the server must be running in HTTP mode (which is the default).
 
 ```bash
-node dist/index.js \
-  --config config/skills.example.json \
-  --transport http \
-  --port 8787
+superskills-mcp serve
 ```
 
 Verify it's running:
 
 ```bash
 curl http://127.0.0.1:8787/health
-# → {"ok":true,"name":"baoyu-local-skills-mcp","version":"0.3.0","tools":["read_x_to_markdown"]}
+# → {"ok":true,"name":"superskills-mcp","version":"0.4.0","tools":["read_x_to_markdown"]}
 ```
 
-### Expose to ChatGPT via Cloudflare Tunnel
+### Expose to ChatGPT via Ngrok
+
+Ngrok provides a free static domain which is ideal for persistent MCP server connections. You can get your free static domain from your Ngrok dashboard.
 
 ```bash
-cloudflared tunnel --url http://127.0.0.1:8787
+ngrok http --domain=your-free-static-domain.ngrok-free.app 8787
 ```
 
-Copy the generated `https://<domain>/mcp` URL and paste it into ChatGPT's MCP connector settings.
+Copy the URL `https://your-free-static-domain.ngrok-free.app/mcp` and paste it into ChatGPT's MCP connector settings.
 
 ---
 
-## 5. Run with stdio transport
+## 4. Connect to Claude Desktop / Cursor (Stdio Transport)
 
-For Claude Desktop / Cursor / local MCP clients:
-
-```bash
-node dist/index.js \
-  --config config/skills.example.json \
-  --transport stdio
-```
+For local MCP clients like Claude Desktop or Cursor, they will spawn the process using stdio.
 
 Example Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
-    "baoyu-local-skills": {
-      "command": "node",
-      "args": [
-        "/Users/wenli/Downloads/baoyu-x-to-markdown-mcp-server/dist/index.js",
-        "--config",
-        "/Users/wenli/Downloads/baoyu-x-to-markdown-mcp-server/config/skills.example.json",
-        "--transport",
-        "stdio"
-      ]
+    "superskills-mcp": {
+      "command": "superskills-mcp",
+      "args": ["serve", "--transport", "stdio"]
     }
   }
 }
@@ -177,66 +139,7 @@ Example Claude Desktop config (`~/Library/Application Support/Claude/claude_desk
 
 ---
 
-## 6. Adapter environment variables
-
-These are set per-skill in the `env` block of `skills.example.json`.
-
-### `BAOYU_X_TO_MARKDOWN_DOWNLOAD_MEDIA`
-
-Default: `true`
-
-When true, the adapter passes `--download-media` to the skill script.
-
-### `BAOYU_X_TO_MARKDOWN_KEEP_OUTPUT`
-
-Default: `false`
-
-When false, the temp output directory is deleted after reading Markdown.
-
-### `BAOYU_X_TO_MARKDOWN_OUTPUT_DIR`
-
-Optional fixed output directory. If set, the adapter never deletes the output.
-
-```json
-"env": {
-  "BAOYU_X_TO_MARKDOWN_OUTPUT_DIR": "/Users/wenli/Downloads/x-to-markdown-output",
-  "BAOYU_X_TO_MARKDOWN_DOWNLOAD_MEDIA": "true"
-}
-```
-
----
-
-## 7. Adapter stdin/stdout protocol
-
-The MCP server sends this JSON to the adapter via stdin:
-
-```json
-{
-  "tool": "read_x_to_markdown",
-  "args": { "url": "https://x.com/i/article/demo" },
-  "context": {
-    "skillDir": "/Users/wenli/.baoyu-skills/skills/baoyu-danger-x-to-markdown",
-    "skillName": "baoyu-danger-x-to-markdown"
-  }
-}
-```
-
-The adapter returns:
-
-```json
-{
-  "ok": true,
-  "content": [{ "type": "text", "text": "# Article Title\n\nContent..." }],
-  "metadata": {
-    "sourceUrl": "https://x.com/i/article/demo",
-    "outputPath": "/tmp/x-to-markdown-xxx/output.md"
-  }
-}
-```
-
----
-
-## 8. Security
+## 5. Security
 
 - `skillDir` must exist and be a directory (validated on startup)
 - Runner scripts must be inside `serverDir` (built-in adapter) or `skillDir` (skill's own scripts)

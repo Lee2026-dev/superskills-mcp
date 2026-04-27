@@ -1,7 +1,11 @@
 // src/config.ts
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+const HOME_DIR = os.homedir();
+export const DEFAULT_CONFIG_DIR = path.join(HOME_DIR, ".superskills");
+export const DEFAULT_CONFIG_PATH = path.join(DEFAULT_CONFIG_DIR, "mcp-config.json");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** MCP server 自身的根目录（dist/ 的上级） */
 export const SERVER_DIR = path.resolve(__dirname, "..");
@@ -27,9 +31,9 @@ export function loadConfig() {
     const configPathArg = readArg("--config");
     const configPath = configPathArg
         ? path.resolve(configPathArg)
-        : path.resolve("config/skills.example.json");
+        : DEFAULT_CONFIG_PATH;
     if (!fs.existsSync(configPath)) {
-        throw new Error(`Config file not found: ${configPath}`);
+        throw new Error(`Config file not found: ${configPath}\nRun 'superskills-mcp init' to create a default configuration.`);
     }
     const raw = JSON.parse(fs.readFileSync(configPath, "utf8"));
     const transportArg = readArg("--transport");
