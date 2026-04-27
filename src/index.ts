@@ -9,7 +9,7 @@ import { loadConfig, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_PATH } from "./config.js
 import { assertSafeSkills } from "./security.js";
 import { startHttp, startStdio } from "./mcp.js";
 import { SkillScanner } from "./scanner.js";
-import { ResolvedSkill } from "./types.js";
+import { ResolvedSkill, DashboardRegistry } from "./types.js";
 
 const PID_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "server.pid");
 const LOG_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "mcp.log");
@@ -92,6 +92,29 @@ async function runServe() {
 
   const scanner = new SkillScanner(config);
   let dynamicSkills: ResolvedSkill[] = [];
+  const registry: DashboardRegistry = new Map();
+
+  const syncRegistry = (staticS: ResolvedSkill[], dynamicS: ResolvedSkill[]) => {
+    for (const s of staticS) {
+      if (!registry.has(s.name)) {
+        registry.set(s.name, { callCount: 0, enabled: true, source: 'static' });
+      } else {
+        const m = registry.get(s.name)!;
+        m.source = 'static';
+      }
+    }
+    const staticNames = new Set(staticS.map(s => s.name));
+    for (const s of dynamicS) {
+      if (!staticNames.has(s.name)) {
+        if (!registry.has(s.name)) {
+          registry.set(s.name, { callCount: 0, enabled: true, source: 'auto' });
+        } else {
+          const m = registry.get(s.name)!;
+          m.source = 'auto';
+        }
+      }
+    }
+  };
 
   const updateDynamicSkills = () => {
     const newSkills: ResolvedSkill[] = [];
@@ -101,6 +124,7 @@ async function runServe() {
       }
     }
     dynamicSkills = newSkills;
+    syncRegistry(staticSkills, dynamicSkills);
     console.error(`[mcp] Dynamic registry updated: ${dynamicSkills.length} auto-discovered skills.`);
   };
 
@@ -133,7 +157,7 @@ async function runServe() {
   };
 
   if (config.server.transport === "http") {
-    await startHttp(config, getCombinedSkills);
+    await startHttp(config, getCombinedSkills, registry);
   } else {
     await startStdio(config, getCombinedSkills);
   }
