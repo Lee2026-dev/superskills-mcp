@@ -145,6 +145,33 @@ function runStop() {
   }
 }
 
+function runStatus() {
+  if (!fs.existsSync(PID_FILE_PATH)) {
+    console.log("🔴 superskills-mcp is currently NOT running.");
+    process.exit(0);
+  }
+
+  const pidStr = fs.readFileSync(PID_FILE_PATH, "utf8").trim();
+  const pid = parseInt(pidStr, 10);
+
+  if (isNaN(pid)) {
+    console.log("🔴 superskills-mcp is currently NOT running (invalid PID file).");
+    process.exit(0);
+  }
+
+  try {
+    // 检查进程是否存在
+    process.kill(pid, 0);
+    console.log(`🟢 superskills-mcp is currently RUNNING (PID: ${pid}).`);
+  } catch (e: any) {
+    if (e.code === "ESRCH") {
+      console.log("🔴 superskills-mcp is currently NOT running (stale PID file found and can be ignored).");
+    } else {
+      console.log(`🟡 superskills-mcp status is UNKNOWN (PID: ${pid}, Error: ${e.message}).`);
+    }
+  }
+}
+
 function printHelp() {
   console.error(`
 Usage: superskills-mcp <command> [options]
@@ -154,6 +181,7 @@ Commands:
   serve     Start the MCP server (reads config from ~/.superskills/mcp-config.json by default)
   list      List all currently registered skills
   stop      Stop a running MCP server
+  status    Check if the MCP server is currently running
 
 Options for 'serve' & 'list':
   --config <path>      Path to custom config JSON
@@ -180,6 +208,9 @@ async function main() {
       break;
     case "stop":
       runStop();
+      break;
+    case "status":
+      runStatus();
       break;
     default:
       printHelp();
