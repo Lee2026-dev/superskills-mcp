@@ -18,6 +18,7 @@ Instead of writing a custom MCP server for every small script you create, `super
 - 📝 **Native Logging:** Built-in background daemon management and real-time log tailing.
 - 🛡️ **Secure Execution:** Strict path validations, restricted runner boundaries, and input schema validation via Zod.
 - 🌐 **Multi-Transport Support:** Expose tools over HTTP (for ChatGPT/Ngrok) or Stdio (for local Claude/Cursor).
+- 📊 **Web Dashboard:** An integrated, premium dark-themed UI to monitor tool usage, toggle skills, and manage your local environment.
 
 ---
 
@@ -66,6 +67,17 @@ superskills-mcp serve &
 | `superskills-mcp add <path>` | Auto-parse and add a new local skill directory to your global config. |
 | `superskills-mcp remove <name>` | Unregister a skill from your global config by its name. |
 | `superskills-mcp log` | Tail the real-time background logs (`[INFO]` and `[ERROR]`). |
+
+---
+
+## 📊 Web Dashboard
+
+`superskills-mcp` 现在内置了一个精美的 Web 控制面板。你可以通过它实时监控技能的调用次数，并随时开启或禁用特定的技能。
+
+1. 确保服务器正在运行 (`superskills-mcp serve &`)。
+2. 在浏览器中打开：`http://127.0.0.1:8787/dashboard/`
+
+该面板完全集成在 Express 服务器中，无需安装任何额外依赖，即插即用。
 
 ---
 
@@ -133,7 +145,7 @@ Your global configuration lives at `~/.superskills/mcp-config.json`.
 {
   "server": {
     "name": "superskills-mcp",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "transport": "http",
     "host": "127.0.0.1",
     "port": 8787
