@@ -30,7 +30,7 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts serve",
-    "build": "tsc",
+    "build": "tsc && cp -r src/dashboard dist/",
     "start": "node dist/index.js serve"
   },
   "dependencies": {
