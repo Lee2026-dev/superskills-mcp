@@ -160,14 +160,31 @@ function runList() {
     process.exit(1);
   }
 
-  const skills = config.skills;
-  console.log(`\n📋 Registered Skills (${skills.length}):\n`);
+  const staticSkills = config.skills;
+  const staticNames = new Set(staticSkills.map(s => s.name));
+
+  // Also scan dynamic roots
+  const scanner = new SkillScanner(config.global);
+  const dynamicSkills = (config.global.scanRoots || [])
+    .flatMap(root => scanner.scanRoot(root))
+    .filter(s => !staticNames.has(s.name));
+
+  const allSkills = [...staticSkills, ...dynamicSkills];
+
+  console.log(`\n📋 Registered Skills (${allSkills.length} total: ${staticSkills.length} static, ${dynamicSkills.length} auto-discovered):\n`);
   
-  skills.forEach((skill, index) => {
+  staticSkills.forEach((skill, index) => {
     console.log(`${index + 1}. \x1b[36m${skill.name}\x1b[0m`);
     console.log(`   Description : ${skill.description || 'No description provided'}`);
     console.log(`   Directory   : ${skill.skillDir}`);
     console.log(`   Inputs      : ${Object.keys(skill.input).join(", ") || 'None'}`);
+    console.log(""); // Empty line for spacing
+  });
+
+  dynamicSkills.forEach((skill, index) => {
+    console.log(`${staticSkills.length + index + 1}. \x1b[32m${skill.name}\x1b[0m \x1b[33m[auto]\x1b[0m`);
+    console.log(`   Description : ${skill.description || 'No description provided'}`);
+    console.log(`   Directory   : ${skill.skillDir}`);
     console.log(""); // Empty line for spacing
   });
 }
