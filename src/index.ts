@@ -5,7 +5,7 @@ import path from "node:path";
 import util from "node:util";
 import { spawn } from "node:child_process";
 import chokidar from "chokidar";
-import { loadConfig, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_PATH } from "./config.js";
+import { loadConfig, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_PATH, SERVER_DIR } from "./config.js";
 import { assertSafeSkills } from "./security.js";
 import { startHttp, startStdio } from "./mcp.js";
 import { SkillScanner } from "./scanner.js";
@@ -426,6 +426,12 @@ function runUpdate() {
   });
 }
 
+function getVersion() {
+  const pkgPath = path.join(SERVER_DIR, "package.json");
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+  return pkg.version;
+}
+
 function printHelp() {
   console.error(`
 Usage: superskills-mcp <command> [options]
@@ -442,7 +448,8 @@ Commands:
   log       Follow the real-time server logs
   update    Self-upgrade the superskills-mcp package to the latest version
 
-Options for 'serve' & 'list':
+Options:
+  -v, --version        Print the current version
   --config <path>      Path to custom config JSON
   
 Options for 'serve' only:
@@ -453,7 +460,14 @@ Options for 'serve' only:
 }
 
 async function main() {
-  const command = process.argv[2];
+  const arg = process.argv[2];
+
+  if (arg === "--version" || arg === "-v") {
+    console.log(getVersion());
+    process.exit(0);
+  }
+
+  const command = arg;
 
   switch (command) {
     case "init":
