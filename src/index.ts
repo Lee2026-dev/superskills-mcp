@@ -131,6 +131,89 @@ function runList() {
   });
 }
 
+function runAdd(skillPathStr: string) {
+  if (!skillPathStr) {
+    console.error("[mcp] Error: You must provide a path to the skill directory.");
+    console.error("Usage: superskills-mcp add /path/to/skill");
+    process.exit(1);
+  }
+
+  const absolutePath = path.resolve(skillPathStr);
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isDirectory()) {
+    console.error(`[mcp] Error: The path ${absolutePath} is not a valid directory.`);
+    process.exit(1);
+  }
+
+  let name = path.basename(absolutePath);
+  let description = "Automatically added skill.";
+
+  const skillMdPath = path.join(absolutePath, "SKILL.md");
+  if (fs.existsSync(skillMdPath)) {
+    const content = fs.readFileSync(skillMdPath, "utf8");
+    const nameMatch = content.match(/^name:\s*(.+)$/m);
+    if (nameMatch) name = nameMatch[1].trim();
+
+    const descMatch = content.match(/^description:\s*(.+)$/m);
+    if (descMatch) description = descMatch[1].trim();
+  }
+
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, "utf8"));
+  } catch (err) {
+    console.error(`[mcp] Failed to load config: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+
+  if (config.skills.some((s: any) => s.name === name)) {
+    console.error(`[mcp] Error: A skill with the name '${name}' already exists in your config.`);
+    process.exit(1);
+  }
+
+  const newSkill = {
+    name,
+    description,
+    skillDir: absolutePath,
+    input: {},
+    env: {}
+  };
+
+  config.skills.push(newSkill);
+  fs.writeFileSync(DEFAULT_CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
+
+  console.log(`[mcp] Successfully added skill: ${name}`);
+  console.log(`[mcp] You may need to edit ${DEFAULT_CONFIG_PATH} to define the 'input' schema.`);
+  console.log(`[mcp] Don't forget to run 'superskills-mcp reload' to apply changes!`);
+}
+
+function runRemove(skillName: string) {
+  if (!skillName) {
+    console.error("[mcp] Error: You must provide the name of the skill to remove.");
+    console.error("Usage: superskills-mcp remove <skill-name>");
+    process.exit(1);
+  }
+
+  let config;
+  try {
+    config = JSON.parse(fs.readFileSync(DEFAULT_CONFIG_PATH, "utf8"));
+  } catch (err) {
+    console.error(`[mcp] Failed to load config: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+
+  const initialCount = config.skills.length;
+  config.skills = config.skills.filter((s: any) => s.name !== skillName);
+
+  if (config.skills.length === initialCount) {
+    console.error(`[mcp] Error: Skill '${skillName}' not found in configuration.`);
+    process.exit(1);
+  }
+
+  fs.writeFileSync(DEFAULT_CONFIG_PATH, JSON.stringify(config, null, 2), "utf8");
+  console.log(`[mcp] Successfully removed skill: ${skillName}`);
+  console.log(`[mcp] Don't forget to run 'superskills-mcp reload' to apply changes!`);
+}
+
 function runStop() {
   if (!fs.existsSync(PID_FILE_PATH)) {
     console.error("[mcp] No PID file found. The server does not appear to be running.");
@@ -245,6 +328,8 @@ Usage: superskills-mcp <command> [options]
 Commands:
   init      Generate a default config file at ~/.superskills/mcp-config.json
   serve     Start the MCP server (reads config from ~/.superskills/mcp-config.json by default)
+  add       Add a new skill by providing its local path
+  remove    Remove an existing skill by its name
   list      List all currently registered skills
   stop      Stop a running MCP server
   reload    Smoothly restart the MCP server to apply new configuration changes
@@ -270,6 +355,12 @@ async function main() {
       break;
     case "serve":
       await runServe();
+      break;
+    case "add":
+      runAdd(process.argv[3]);
+      break;
+    case "remove":
+      runRemove(process.argv[3]);
       break;
     case "list":
       runList();

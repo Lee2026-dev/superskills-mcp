@@ -53,7 +53,27 @@ superskills-mcp reload
 
 ## 2. Register Your Skills
 
-Open `~/.superskills/mcp-config.json`. To add a new skill, append a JSON block to the `skills` array — **no code changes needed**.
+You can use the CLI to dynamically add or remove skills from your configuration:
+
+```bash
+# Add a skill by providing its directory path
+superskills-mcp add /path/to/your/skill
+
+# Remove a skill by its exact name
+superskills-mcp remove my_custom_skill
+```
+
+After adding a skill, it is inserted into your global config (`~/.superskills/mcp-config.json`) with an empty `input` schema. **You may need to open the config file and define the input fields manually if your script expects specific arguments.**
+
+Once edited, don't forget to reload the server:
+
+```bash
+superskills-mcp reload
+```
+
+### Manual Config Editing
+
+Alternatively, you can open `~/.superskills/mcp-config.json` and append a JSON block to the `skills` array manually.
 
 ```json
 {
