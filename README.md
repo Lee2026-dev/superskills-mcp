@@ -28,6 +28,19 @@ Start the server:
 
 ```bash
 superskills-mcp serve
+# To run in the background: superskills-mcp serve &
+```
+
+List registered skills:
+
+```bash
+superskills-mcp list
+```
+
+Stop the server:
+
+```bash
+superskills-mcp stop
 ```
 
 ---

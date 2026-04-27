@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 // src/index.ts
 import fs from "node:fs";
+import path from "node:path";
 import { loadConfig, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_PATH } from "./config.js";
 import { assertSafeSkills } from "./security.js";
 import { startHttp, startStdio } from "./mcp.js";
+
+const PID_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "server.pid");
 
 const DEFAULT_CONFIG_CONTENT = JSON.stringify({
   server: {
@@ -52,6 +55,19 @@ async function runServe() {
     console.error(`  - ${s.name} (skillDir=${s.skillDir})`);
   }
 
+  // Manage PID file for 'stop' command
+  fs.writeFileSync(PID_FILE_PATH, process.pid.toString(), "utf8");
+  
+  const cleanup = () => {
+    if (fs.existsSync(PID_FILE_PATH)) {
+      fs.unlinkSync(PID_FILE_PATH);
+    }
+    process.exit(0);
+  };
+  
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+
   if (globalConfig.server.transport === "http") {
     await startHttp(globalConfig, skills);
   } else {
@@ -71,6 +87,64 @@ function runInit() {
   console.error(`[mcp] Edit this file to register your skills, then run 'superskills-mcp serve'`);
 }
 
+function runList() {
+  let config;
+  try {
+    config = loadConfig();
+  } catch (err) {
+    console.error(`[mcp] Failed to load config: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+
+  const skills = config.skills;
+  console.log(`\n📋 Registered Skills (${skills.length}):\n`);
+  
+  skills.forEach((skill, index) => {
+    console.log(`${index + 1}. \x1b[36m${skill.name}\x1b[0m`);
+    console.log(`   Description : ${skill.description || 'No description provided'}`);
+    console.log(`   Directory   : ${skill.skillDir}`);
+    console.log(`   Inputs      : ${Object.keys(skill.input).join(", ") || 'None'}`);
+    console.log(""); // Empty line for spacing
+  });
+}
+
+function runStop() {
+  if (!fs.existsSync(PID_FILE_PATH)) {
+    console.error("[mcp] No PID file found. The server does not appear to be running.");
+    process.exit(0);
+  }
+
+  const pidStr = fs.readFileSync(PID_FILE_PATH, "utf8").trim();
+  const pid = parseInt(pidStr, 10);
+
+  if (isNaN(pid)) {
+    console.error("[mcp] Invalid PID file content. Cleaning up...");
+    fs.unlinkSync(PID_FILE_PATH);
+    process.exit(1);
+  }
+
+  try {
+    // Test if process exists by sending signal 0
+    process.kill(pid, 0);
+  } catch (e: any) {
+    if (e.code === "ESRCH") {
+      console.error(`[mcp] Process ${pid} is not running. Cleaning up stale PID file...`);
+      fs.unlinkSync(PID_FILE_PATH);
+      process.exit(0);
+    }
+  }
+
+  try {
+    // Send termination signal
+    process.kill(pid, "SIGTERM");
+    console.log(`[mcp] Successfully stopped server (PID: ${pid}).`);
+    // Note: The serve process has a cleanup handler that removes the PID file.
+  } catch (err: any) {
+    console.error(`[mcp] Failed to stop process ${pid}: ${err.message}`);
+    process.exit(1);
+  }
+}
+
 function printHelp() {
   console.error(`
 Usage: superskills-mcp <command> [options]
@@ -78,9 +152,13 @@ Usage: superskills-mcp <command> [options]
 Commands:
   init      Generate a default config file at ~/.superskills/mcp-config.json
   serve     Start the MCP server (reads config from ~/.superskills/mcp-config.json by default)
+  list      List all currently registered skills
+  stop      Stop a running MCP server
 
-Options for 'serve':
+Options for 'serve' & 'list':
   --config <path>      Path to custom config JSON
+  
+Options for 'serve' only:
   --transport <type>   'http' or 'stdio'
   --port <number>      Port for HTTP transport
   --host <string>      Host for HTTP transport
@@ -96,6 +174,12 @@ async function main() {
       break;
     case "serve":
       await runServe();
+      break;
+    case "list":
+      runList();
+      break;
+    case "stop":
+      runStop();
       break;
     default:
       printHelp();
