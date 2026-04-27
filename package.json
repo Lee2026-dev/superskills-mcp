@@ -3,8 +3,30 @@
   "version": "0.4.0",
   "description": "A universal MCP gateway to expose local CLI skills to AI assistants.",
   "type": "module",
+  "author": "wenli",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lee2026-dev/superskills-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "agent",
+    "skills",
+    "gateway"
+  ],
   "bin": {
     "superskills-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "scripts",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "scripts": {
     "dev": "tsx src/index.ts serve",
