@@ -90,3 +90,12 @@ export interface SkillOutput {
     message?: string;
   };
 }
+
+/** Dashboard metadata tracking */
+export interface SkillMeta {
+  callCount: number;
+  enabled: boolean;
+  source: 'static' | 'auto';
+}
+
+export type DashboardRegistry = Map<string, SkillMeta>;
