@@ -48,6 +48,11 @@ export interface SkillDefaults {
 export interface MultiSkillConfig {
   server: ServerGlobalConfig;
   defaults: SkillDefaults;
+  scanRoots?: string[];
+  scanSettings?: {
+    watch?: boolean;
+    ignore?: string[];
+  };
   skills: SkillDef[];
 }
 

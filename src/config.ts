@@ -45,6 +45,13 @@ export function loadConfig(): { global: MultiSkillConfig; skills: ResolvedSkill[
 
   const raw = JSON.parse(fs.readFileSync(configPath, "utf8")) as MultiSkillConfig;
 
+  // Expand ~ in scanRoots
+  if (raw.scanRoots) {
+    raw.scanRoots = raw.scanRoots.map(p => 
+      p.startsWith('~/') ? path.join(os.homedir(), p.slice(2)) : path.resolve(p)
+    );
+  }
+
   const transportArg = readArg("--transport");
   const portArg = readArg("--port");
   const hostArg = readArg("--host");
