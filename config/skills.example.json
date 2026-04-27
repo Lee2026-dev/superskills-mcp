@@ -1,0 +1,35 @@
+{
+  "server": {
+    "name": "baoyu-local-skills-mcp",
+    "version": "0.3.0",
+    "transport": "http",
+    "host": "127.0.0.1",
+    "port": 8787
+  },
+  "defaults": {
+    "timeoutMs": 120000,
+    "maxOutputBytes": 10485760,
+    "runner": {
+      "command": "bun",
+      "args": ["{serverDir}/scripts/mcp-adapter.ts"]
+    }
+  },
+  "skills": [
+    {
+      "name": "read_x_to_markdown",
+      "description": "Read a given X/Twitter link and return clean Markdown.",
+      "skillDir": "/Users/wenli/.baoyu-skills/skills/baoyu-danger-x-to-markdown",
+      "input": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "X/Twitter post URL to read"
+        }
+      },
+      "env": {
+        "BAOYU_X_TO_MARKDOWN_DOWNLOAD_MEDIA": "true",
+        "BAOYU_X_TO_MARKDOWN_KEEP_OUTPUT": "false"
+      }
+    }
+  ]
+}
