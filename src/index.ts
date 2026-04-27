@@ -17,7 +17,7 @@ const LOG_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "mcp.log");
 const DEFAULT_CONFIG_CONTENT = JSON.stringify({
   server: {
     name: "superskills-mcp",
-    version: "0.4.0",
+    version: "0.5.0",
     transport: "http",
     host: "127.0.0.1",
     port: 8787
@@ -29,6 +29,13 @@ const DEFAULT_CONFIG_CONTENT = JSON.stringify({
       command: "bun",
       args: ["{serverDir}/scripts/mcp-adapter.ts"]
     }
+  },
+  scanRoots: [
+    "~/.agents/skills"
+  ],
+  scanSettings: {
+    watch: true,
+    ignore: ["node_modules", ".git"]
   },
   skills: [
     {
@@ -403,6 +410,22 @@ function runLog() {
   });
 }
 
+function runUpdate() {
+  console.log("[mcp] Checking for updates and upgrading...");
+  const child = spawn("npm", ["install", "-g", "superskills-mcp"], {
+    stdio: "inherit",
+    shell: true
+  });
+  child.on("close", (code) => {
+    if (code === 0) {
+      console.log("[mcp] Successfully updated superskills-mcp to the latest version.");
+    } else {
+      console.error(`[mcp] Update failed with exit code ${code}.`);
+    }
+    process.exit(code ?? 1);
+  });
+}
+
 function printHelp() {
   console.error(`
 Usage: superskills-mcp <command> [options]
@@ -417,6 +440,7 @@ Commands:
   reload    Smoothly restart the MCP server to apply new configuration changes
   status    Check if the MCP server is currently running
   log       Follow the real-time server logs
+  update    Self-upgrade the superskills-mcp package to the latest version
 
 Options for 'serve' & 'list':
   --config <path>      Path to custom config JSON
@@ -458,6 +482,9 @@ async function main() {
       break;
     case "log":
       runLog();
+      break;
+    case "update":
+      runUpdate();
       break;
     default:
       printHelp();
