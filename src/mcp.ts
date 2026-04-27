@@ -68,21 +68,23 @@ export function createMcpServer(
 
 export async function startStdio(
   globalConfig: MultiSkillConfig,
-  skills: ResolvedSkill[]
+  skillsOrGetter: ResolvedSkill[] | (() => ResolvedSkill[])
 ): Promise<void> {
+  const skills = typeof skillsOrGetter === "function" ? skillsOrGetter() : skillsOrGetter;
   const server = createMcpServer(globalConfig, skills);
   await server.connect(new StdioServerTransport());
 }
 
 export async function startHttp(
   globalConfig: MultiSkillConfig,
-  skills: ResolvedSkill[]
+  skillsOrGetter: ResolvedSkill[] | (() => ResolvedSkill[])
 ): Promise<void> {
   const cfg = globalConfig.server;
   const app = express();
   app.use(express.json({ limit: "4mb" }));
 
   app.post("/mcp", async (req, res) => {
+    const skills = typeof skillsOrGetter === "function" ? skillsOrGetter() : skillsOrGetter;
     const server = createMcpServer(globalConfig, skills);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined
@@ -98,6 +100,7 @@ export async function startHttp(
   });
 
   app.get("/health", (_req, res) => {
+    const skills = typeof skillsOrGetter === "function" ? skillsOrGetter() : skillsOrGetter;
     res.json({
       ok: true,
       name: cfg.name,
@@ -107,6 +110,7 @@ export async function startHttp(
   });
 
   app.listen(cfg.port, cfg.host, () => {
+    const skills = typeof skillsOrGetter === "function" ? skillsOrGetter() : skillsOrGetter;
     console.error(`[mcp] HTTP server listening on http://${cfg.host}:${cfg.port}/mcp`);
     console.error(
       `[mcp] Registered ${skills.length} tool(s): ${skills.map((s) => s.name).join(", ")}`
