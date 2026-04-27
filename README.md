@@ -1,49 +1,96 @@
-# superskills-mcp
+# ⚡ superskills-mcp
 
-A general-purpose MCP gateway that exposes your local CLI skills to any AI assistant. Any MCP client (ChatGPT, Claude Desktop, Cursor, etc.) can connect to it and invoke your local scripts as intelligent tools.
+<div align="center">
+  <p><strong>A Universal, Agent-Agnostic MCP Gateway for Local Scripts & CLI Tools</strong></p>
+</div>
 
-```text
-read_x_to_markdown({ url })   ← registered automatically from config
-my_custom_skill({ ... })      ← just add to skills array, zero code change
-```
+`superskills-mcp` is a lightweight, globally installable Model Context Protocol (MCP) gateway. It allows you to effortlessly expose your local bash scripts, python tools, or Node.js skills to any AI assistant (ChatGPT, Claude Desktop, Cursor, etc.) via a unified interface.
+
+Instead of writing a custom MCP server for every small script you create, `superskills-mcp` acts as a dynamic registry. You simply drop your skill's path into the configuration, and it is instantly available to the AI.
 
 ---
 
-## 1. Quick Start (Global Installation)
+## ✨ Key Features
 
-Install the CLI tool globally on your system:
+- 🌍 **Global Installation:** Run it from anywhere on your system via the `superskills-mcp` CLI.
+- 🔌 **Dynamic Tool Registration:** Add or remove skills dynamically without touching the server code.
+- 🔄 **Hot Reloading:** Apply configuration changes on the fly with zero downtime using `superskills-mcp reload`.
+- 📝 **Native Logging:** Built-in background daemon management and real-time log tailing.
+- 🛡️ **Secure Execution:** Strict path validations, restricted runner boundaries, and input schema validation via Zod.
+- 🌐 **Multi-Transport Support:** Expose tools over HTTP (for ChatGPT/Ngrok) or Stdio (for local Claude/Cursor).
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+
+Install the CLI tool globally via npm or pnpm:
 
 ```bash
-npm install -g .
-# Or via pnpm: pnpm link --global
+npm install -g superskills-mcp
 ```
 
-Initialize your configuration file (creates `~/.superskills/mcp-config.json`):
+### 2. Initialization
+
+Generate your global configuration file (this will safely create `~/.superskills/mcp-config.json`):
 
 ```bash
 superskills-mcp init
 ```
 
-Start the server:
+### 3. Start the Gateway
+
+Launch the MCP server in the background:
 
 ```bash
-superskills-mcp serve
-# To run in the background: superskills-mcp serve &
+superskills-mcp serve &
 ```
 
-List registered skills:
+*(You can verify it is running by typing `superskills-mcp status` or by checking `curl http://127.0.0.1:8787/health`)*
+
+---
+
+## 🛠️ CLI Reference
+
+`superskills-mcp` comes with a powerful suite of management commands akin to PM2 or Nginx:
+
+| Command | Description |
+|---|---|
+| `superskills-mcp init` | Initialize the global config at `~/.superskills/mcp-config.json`. |
+| `superskills-mcp serve` | Start the MCP server using the global config. |
+| `superskills-mcp status` | Check if the server is actively running in the background. |
+| `superskills-mcp stop` | Gracefully terminate the running server. |
+| `superskills-mcp reload` | Smoothly restart the server to apply configuration changes instantly. |
+| `superskills-mcp list` | Print a formatted list of all currently registered skills. |
+| `superskills-mcp add <path>` | Auto-parse and add a new local skill directory to your global config. |
+| `superskills-mcp remove <name>` | Unregister a skill from your global config by its name. |
+| `superskills-mcp log` | Tail the real-time background logs (`[INFO]` and `[ERROR]`). |
+
+---
+
+## 📦 Managing Skills
+
+### Adding Skills Automatically
+
+You can use the CLI to dynamically attach a new local skill:
 
 ```bash
-superskills-mcp list
+superskills-mcp add /path/to/your/custom_skill
 ```
+*Note: This command extracts the skill name and description, but sets the `input` schema to `{}`. If your skill requires specific arguments (like `url` or `query`), open `~/.superskills/mcp-config.json` and define the JSON schema under the `input` key.*
 
-Stop the server:
+### Removing Skills
+
+To detach a skill:
 
 ```bash
-superskills-mcp stop
+superskills-mcp remove my_custom_skill
 ```
 
-Reload the server (apply config changes instantly in the background):
+### Applying Changes
+
+After adding, removing, or manually editing your config, reload the gateway:
 
 ```bash
 superskills-mcp reload
@@ -51,29 +98,9 @@ superskills-mcp reload
 
 ---
 
-## 2. Register Your Skills
+## ⚙️ Configuration File Structure
 
-You can use the CLI to dynamically add or remove skills from your configuration:
-
-```bash
-# Add a skill by providing its directory path
-superskills-mcp add /path/to/your/skill
-
-# Remove a skill by its exact name
-superskills-mcp remove my_custom_skill
-```
-
-After adding a skill, it is inserted into your global config (`~/.superskills/mcp-config.json`) with an empty `input` schema. **You may need to open the config file and define the input fields manually if your script expects specific arguments.**
-
-Once edited, don't forget to reload the server:
-
-```bash
-superskills-mcp reload
-```
-
-### Manual Config Editing
-
-Alternatively, you can open `~/.superskills/mcp-config.json` and append a JSON block to the `skills` array manually.
+Your global configuration lives at `~/.superskills/mcp-config.json`.
 
 ```json
 {
@@ -96,7 +123,7 @@ Alternatively, you can open `~/.superskills/mcp-config.json` and append a JSON b
     {
       "name": "read_x_to_markdown",
       "description": "Read a given X/Twitter link and return clean Markdown.",
-      "skillDir": "/Users/wenli/.baoyu-skills/skills/baoyu-danger-x-to-markdown",
+      "skillDir": "/Users/username/my-skills/twitter-scraper",
       "input": {
         "url": {
           "type": "string",
@@ -105,65 +132,43 @@ Alternatively, you can open `~/.superskills/mcp-config.json` and append a JSON b
         }
       },
       "env": {
-        "BAOYU_X_TO_MARKDOWN_DOWNLOAD_MEDIA": "true",
-        "BAOYU_X_TO_MARKDOWN_KEEP_OUTPUT": "false"
+        "KEEP_OUTPUT": "false"
       }
     }
   ]
 }
 ```
 
-### Config fields explained
-
-| Field | Description |
-|---|---|
-| `server.name` | Server name shown to MCP clients |
-| `server.transport` | `"http"` (for ChatGPT / remote) or `"stdio"` (for local clients) |
-| `defaults.runner.args` | `{serverDir}` is auto-replaced with this project's absolute installation path |
-| `skills[].skillDir` | Absolute path to your local skill directory |
-| `skills[].input` | Input schema — each field becomes a validated MCP tool parameter |
-| `skills[].env` | Environment variables forwarded to the adapter |
-
-### Adding a new skill
-
-1. Add a new entry to `skills[]` in `~/.superskills/mcp-config.json`
-2. Restart the server (`superskills-mcp serve`)
-3. The new tool is automatically available to all connected MCP clients
+- **`defaults.runner.args`**: The `{serverDir}` placeholder is automatically replaced with this gateway's actual installation path.
+- **`skills[].input`**: Defines the exact JSON schema that the AI must fulfill when calling your tool.
+- **`skills[].env`**: Environment variables scoped specifically to that single skill's execution.
 
 ---
 
-## 3. Connect to ChatGPT (HTTP Transport)
+## 🔗 Connecting AI Assistants
 
-For ChatGPT or any remote MCP client, the server must be running in HTTP mode (which is the default).
+### 🌐 Connecting to ChatGPT (HTTP Transport)
 
-```bash
-superskills-mcp serve
-```
+For cloud-based AI like ChatGPT, the server must be exposed to the internet. 
 
-Verify it's running:
-
-```bash
-curl http://127.0.0.1:8787/health
-# → {"ok":true,"name":"superskills-mcp","version":"0.4.0","tools":["read_x_to_markdown"]}
-```
-
-### Expose to ChatGPT via Ngrok
-
-Ngrok provides a free static domain which is ideal for persistent MCP server connections. You can get your free static domain from your Ngrok dashboard.
+1. Ensure the gateway is running (`superskills-mcp serve &`).
+2. Expose the local port via a persistent [Ngrok](https://ngrok.com/) tunnel:
 
 ```bash
 ngrok http --domain=your-free-static-domain.ngrok-free.app 8787
 ```
 
-Copy the URL `https://your-free-static-domain.ngrok-free.app/mcp` and paste it into ChatGPT's MCP connector settings.
+3. In your ChatGPT MCP Configuration, provide the proxy URL with the `/mcp` path:
+`https://your-free-static-domain.ngrok-free.app/mcp`
 
----
+*Tip: You can test if the proxy is bypassing Ngrok's browser warnings by running:*
+`curl -H "ngrok-skip-browser-warning: true" https://your-free-static-domain.ngrok-free.app/health`
 
-## 4. Connect to Claude Desktop / Cursor (Stdio Transport)
+### 🖥️ Connecting to Claude Desktop / Cursor (Stdio Transport)
 
-For local MCP clients like Claude Desktop or Cursor, they will spawn the process using stdio.
+Local clients prefer communicating via standard input/output (`stdio`). You do not need to run `serve &` manually for these clients; they will spawn the gateway themselves.
 
-Example Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add this block to your local client config (e.g., `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
@@ -178,10 +183,8 @@ Example Claude Desktop config (`~/Library/Application Support/Claude/claude_desk
 
 ---
 
-## 5. Security
+## 🔒 Security Principles
 
-- `skillDir` must exist and be a directory (validated on startup)
-- Runner scripts must be inside `serverDir` (built-in adapter) or `skillDir` (skill's own scripts)
-- `shell: false` — no shell injection
-- Timeout and output size limits enforced per skill
-- Do not expose HTTP transport publicly without a reverse proxy or auth layer
+- **Isolated Execution**: Skills are executed using restricted runners without shell interpolation (`shell: false`), eliminating command injection risks.
+- **Directory Verification**: The gateway strictly validates that runner scripts exist within the trusted `serverDir` or the specific `skillDir`.
+- **Resource Limits**: Configurable `timeoutMs` and `maxOutputBytes` prevent runaway scripts from crashing your system.
