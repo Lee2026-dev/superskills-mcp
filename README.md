@@ -98,6 +98,33 @@ superskills-mcp reload
 
 ---
 
+## 🔍 Auto-Discovery (Zero Configuration)
+
+If you have a collection of skills in a folder, you can let `superskills-mcp` discover them automatically. 
+
+Any sub-directory containing a `SKILL.md` file will be recognized as a tool.
+
+1. Open `~/.superskills/mcp-config.json`.
+2. Add `scanRoots` and `scanSettings`:
+
+```json
+{
+  "scanRoots": [
+    "~/.baoyu-skills/skills"
+  ],
+  "scanSettings": {
+    "watch": true,
+    "ignore": ["node_modules", ".git"]
+  }
+}
+```
+
+- **`scanRoots`**: An array of directories to scan for sub-folders containing `SKILL.md`.
+- **`watch`**: If `true`, the server will monitor these directories in real-time. Adding or removing a folder will instantly update the available tools for your AI assistant—**no restart required**.
+
+
+---
+
 ## ⚙️ Configuration File Structure
 
 Your global configuration lives at `~/.superskills/mcp-config.json`.

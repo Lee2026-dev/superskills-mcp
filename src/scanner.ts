@@ -59,6 +59,7 @@ export class SkillScanner {
         name,
         description,
         skillDir,
+        input: {},
         timeoutMs: this.config.defaults.timeoutMs,
         maxOutputBytes: this.config.defaults.maxOutputBytes,
         runner: this.config.defaults.runner,

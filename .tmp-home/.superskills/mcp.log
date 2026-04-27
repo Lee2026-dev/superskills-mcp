@@ -1,0 +1,5 @@
+[2026-04-27T07:43:28.907Z] [ERROR] [mcp] server=test-server v1.0.0
+[2026-04-27T07:43:28.908Z] [ERROR] [mcp] transport=http
+[2026-04-27T07:43:28.909Z] [ERROR] [mcp] Dynamic registry updated: 1 auto-discovered skills.
+[2026-04-27T07:43:28.921Z] [ERROR] [mcp] HTTP server listening on http://127.0.0.1:9999/mcp
+[2026-04-27T07:43:28.922Z] [ERROR] [mcp] Registered 1 tool(s): my-auto-skill
