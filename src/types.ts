@@ -37,6 +37,8 @@ export interface ServerGlobalConfig {
   port: number;
   /** 可选：ngrok 认证令牌，配置后启动时自动开启隧道 */
   ngrokToken?: string;
+  /** 可选：ngrok 自定义域名 */
+  ngrokDomain?: string;
 }
 
 /** defaults，供所有 skill 继承 */

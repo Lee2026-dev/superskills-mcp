@@ -21,7 +21,8 @@ const DEFAULT_CONFIG_CONTENT = JSON.stringify({
     transport: "http",
     host: "127.0.0.1",
     port: 8787,
-    ngrokToken: ""
+    ngrokToken: "",
+    ngrokDomain: ""
   },
   defaults: {
     timeoutMs: 120000,

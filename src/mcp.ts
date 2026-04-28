@@ -147,8 +147,11 @@ export async function startHttp(
         const session = await new ngrok.SessionBuilder()
           .authtoken(cfg.ngrokToken)
           .connect();
-        const tunnel = await session.httpEndpoint()
-          .listenAndForward(`http://${cfg.host}:${cfg.port}`);
+        const builder = session.httpEndpoint();
+        if (cfg.ngrokDomain) {
+          builder.domain(cfg.ngrokDomain);
+        }
+        const tunnel = await builder.listenAndForward(`http://${cfg.host}:${cfg.port}`);
         
         console.error(`\x1b[32m[mcp] Ngrok tunnel active!\x1b[0m`);
         console.error(`\x1b[32m[mcp] Public URL: ${tunnel.url()}\x1b[0m`);
