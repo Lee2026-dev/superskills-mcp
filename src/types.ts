@@ -44,6 +44,12 @@ export interface SkillDefaults {
   runner: RunnerConfig;
 }
 
+/** 本地笔记工具配置 */
+export interface NotesConfig {
+  /** 笔记目录，支持 ~ 展开 */
+  dir: string;
+}
+
 /** 顶层配置文件结构 */
 export interface MultiSkillConfig {
   server: ServerGlobalConfig;
@@ -53,6 +59,8 @@ export interface MultiSkillConfig {
     watch?: boolean;
     ignore?: string[];
   };
+  /** 内置本地笔记工具配置 */
+  notes?: NotesConfig;
   skills: SkillDef[];
 }
 

@@ -7,6 +7,7 @@ import { z, ZodRawShape } from "zod";
 import { MultiSkillConfig, ResolvedSkill, DashboardRegistry } from "./types.js";
 import { runSkill } from "./runner.js";
 import { createDashboardRouter } from "./dashboard.js";
+import { registerNotesTools } from "./notes.js";
 
 
 /** 将 InputFieldSchema 定义转换为 Zod schema shape */
@@ -73,6 +74,11 @@ export function createMcpServer(
         };
       }
     });
+  }
+
+  // Register built-in notes tools if configured
+  if (globalConfig.notes) {
+    registerNotesTools(server, globalConfig.notes);
   }
 
   return server;
