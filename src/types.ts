@@ -39,6 +39,8 @@ export interface ServerGlobalConfig {
   ngrokToken?: string;
   /** 可选：ngrok 自定义域名 */
   ngrokDomain?: string;
+  /** 可选：是否开启 ngrok 连接池，防止地址占用错误 */
+  ngrokPooling?: boolean;
 }
 
 /** defaults，供所有 skill 继承 */

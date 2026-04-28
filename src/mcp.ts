@@ -151,6 +151,9 @@ export async function startHttp(
         if (cfg.ngrokDomain) {
           builder.domain(cfg.ngrokDomain);
         }
+        if (cfg.ngrokPooling) {
+          builder.poolingEnabled(true);
+        }
         const tunnel = await builder.listenAndForward(`http://${cfg.host}:${cfg.port}`);
         
         console.error(`\x1b[32m[mcp] Ngrok tunnel active!\x1b[0m`);
