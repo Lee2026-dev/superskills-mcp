@@ -3,37 +3,39 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>superskills-mcp | Dashboard</title>
+  <title>superskills // mcp</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <header>
-    <div class="logo">⚡ superskills-mcp</div>
+    <div class="logo">superskills.</div>
     <div class="status-indicator">
       <div class="pulse"></div>
-      <span id="uptime">Online</span>
+      <span id="uptime">Active</span>
     </div>
   </header>
 
   <main>
     <section class="stats-bar">
       <div class="stat-card">
-        <div class="stat-label">Total Skills</div>
-        <div class="stat-value" id="stat-total">0</div>
+        <span class="stat-label">Registry</span>
+        <span class="stat-value" id="stat-total">0</span>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Static Configured</div>
-        <div class="stat-value" id="stat-static">0</div>
+        <span class="stat-label">Static</span>
+        <span class="stat-value" id="stat-static">0</span>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Auto Discovered</div>
-        <div class="stat-value" id="stat-auto">0</div>
+        <span class="stat-label">Auto</span>
+        <span class="stat-value" id="stat-auto">0</span>
       </div>
     </section>
 
     <section class="skills-grid" id="skills-grid">
-      <!-- Cards rendered here via JS -->
+      <!-- Minimalist rows injected here -->
     </section>
   </main>
 
