@@ -19,6 +19,8 @@ Instead of writing a custom MCP server for every small script you create, `super
 - 🛡️ **Secure Execution:** Strict path validations, restricted runner boundaries, and input schema validation via Zod.
 - 🌐 **Multi-Transport Support:** Expose tools over HTTP (for ChatGPT/Ngrok) or Stdio (for local Claude/Cursor).
 - 📊 **Web Dashboard:** An integrated, premium dark-themed UI to monitor tool usage, toggle skills, and manage your local environment.
+- 🕳️ **Integrated Ngrok:** Built-in tunneling support—expose your local tools to the internet with a single config line.
+- 📓 **Built-in Notes:** Native markdown note-taking management tools (`list`, `read`, `write`) included out of the box.
 
 ---
 
@@ -67,6 +69,49 @@ superskills-mcp serve &
 | `superskills-mcp add <path>` | Auto-parse and add a new local skill directory to your global config. |
 | `superskills-mcp remove <name>` | Unregister a skill from your global config by its name. |
 | `superskills-mcp log` | Tail the real-time background logs (`[INFO]` and `[ERROR]`). |
+| `superskills-mcp update` | Self-upgrade the `superskills-mcp` package to the latest version. |
+
+---
+
+## 📓 Built-in Tools (Notes)
+
+`superskills-mcp` provides a set of native tools for managing markdown notes. This is perfect for letting AI assistants maintain a local knowledge base or journal for you.
+
+To enable it, add the `notes` block to your config:
+
+```json
+{
+  "notes": {
+    "dir": "/Users/username/Documents/Notes"
+  }
+}
+```
+
+This will automatically expose:
+- `notes_list`: List all markdown files in the directory.
+- `notes_read`: Read the content of a specific note.
+- `notes_write`: Create or update a note with given content.
+
+---
+
+## 🕳️ Integrated Ngrok Tunneling
+
+No more running `ngrok` in a separate terminal. `superskills-mcp` can automatically establish a secure tunnel for you.
+
+Simply add your Ngrok token to the `server` config:
+
+```json
+{
+  "server": {
+    "transport": "http",
+    "port": 8787,
+    "ngrokToken": "your_ngrok_auth_token",
+    "ngrokDomain": "your-optional-custom-domain.ngrok-free.app"
+  }
+}
+```
+
+When you run `superskills-mcp serve`, it will log the public URL. Use `{url}/mcp` as the Action URL in ChatGPT.
 
 ---
 
@@ -145,10 +190,15 @@ Your global configuration lives at `~/.superskills/mcp-config.json`.
 {
   "server": {
     "name": "superskills-mcp",
-    "version": "0.5.0",
+    "version": "0.6.2",
     "transport": "http",
     "host": "127.0.0.1",
-    "port": 8787
+    "port": 8787,
+    "ngrokToken": "",
+    "ngrokDomain": ""
+  },
+  "notes": {
+    "dir": "~/Documents/mcp-notes"
   },
   "defaults": {
     "timeoutMs": 120000,
@@ -190,8 +240,8 @@ Your global configuration lives at `~/.superskills/mcp-config.json`.
 
 For cloud-based AI like ChatGPT, the server must be exposed to the internet. 
 
-1. Ensure the gateway is running (`superskills-mcp serve &`).
-2. Expose the local port via a persistent [Ngrok](https://ngrok.com/) tunnel:
+1. Recommended: Use the [Integrated Ngrok Tunneling](#-integrated-ngrok-tunneling).
+2. Alternative: Expose the local port via a persistent [Ngrok](https://ngrok.com/) tunnel manually:
 
 ```bash
 ngrok http --domain=your-free-static-domain.ngrok-free.app 8787
@@ -199,9 +249,6 @@ ngrok http --domain=your-free-static-domain.ngrok-free.app 8787
 
 3. In your ChatGPT MCP Configuration, provide the proxy URL with the `/mcp` path:
 `https://your-free-static-domain.ngrok-free.app/mcp`
-
-*Tip: You can test if the proxy is bypassing Ngrok's browser warnings by running:*
-`curl -H "ngrok-skip-browser-warning: true" https://your-free-static-domain.ngrok-free.app/health`
 
 ### 🖥️ Connecting to Claude Desktop / Cursor (Stdio Transport)
 
