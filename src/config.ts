@@ -61,6 +61,13 @@ export function loadConfig(): { global: MultiSkillConfig; skills: ResolvedSkill[
   raw.server.host = hostArg ?? raw.server.host ?? "127.0.0.1";
   raw.server.port = Number(portArg ?? raw.server.port ?? 8787);
 
+  // 解析 notes 配置
+  if (raw.notes && raw.notes.dir) {
+    raw.notes.dir = raw.notes.dir.startsWith('~/') 
+      ? path.join(os.homedir(), raw.notes.dir.slice(2)) 
+      : path.resolve(raw.notes.dir);
+  }
+
   const defaults: SkillDefaults = {
     timeoutMs: Number(raw.defaults?.timeoutMs ?? 120000),
     maxOutputBytes: Number(raw.defaults?.maxOutputBytes ?? 10485760),

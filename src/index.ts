@@ -202,6 +202,14 @@ function runList() {
 
   const allSkills = [...staticSkills, ...dynamicSkills];
 
+  if (config.notes) {
+    console.log("\n--- Built-in Tools (Notes) ---");
+    console.log("1. notes_list");
+    console.log("2. notes_read");
+    console.log("3. notes_write");
+    console.log(`   Directory: ${config.notes.dir}`);
+  }
+
   console.log(`\n📋 Registered Skills (${allSkills.length} total: ${staticSkills.length} static, ${dynamicSkills.length} auto-discovered):\n`);
   
   staticSkills.forEach((skill, index) => {
