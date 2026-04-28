@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import express from "express";
 import { z, ZodRawShape } from "zod";
+import ngrok from "@ngrok/ngrok";
 import { MultiSkillConfig, ResolvedSkill, DashboardRegistry } from "./types.js";
 import { runSkill } from "./runner.js";
 import { createDashboardRouter } from "./dashboard.js";
@@ -135,9 +136,28 @@ export async function startHttp(
     });
   });
 
-  app.listen(cfg.port, cfg.host, () => {
+  app.listen(cfg.port, cfg.host, async () => {
     const skills = typeof skillsOrGetter === "function" ? skillsOrGetter() : skillsOrGetter;
     console.error(`[mcp] HTTP server listening on http://${cfg.host}:${cfg.port}/mcp`);
+    
+    // Auto-start ngrok tunnel if token is provided
+    if (cfg.ngrokToken) {
+      try {
+        console.error(`[mcp] Starting ngrok tunnel...`);
+        const session = await new ngrok.SessionBuilder()
+          .authtoken(cfg.ngrokToken)
+          .connect();
+        const tunnel = await session.httpEndpoint()
+          .listenAndForward(`http://${cfg.host}:${cfg.port}`);
+        
+        console.error(`\x1b[32m[mcp] Ngrok tunnel active!\x1b[0m`);
+        console.error(`\x1b[32m[mcp] Public URL: ${tunnel.url()}\x1b[0m`);
+        console.error(`\x1b[32m[mcp] ChatGPT Action URL: ${tunnel.url()}/mcp\x1b[0m`);
+      } catch (err) {
+        console.error(`\x1b[31m[mcp] Failed to start ngrok tunnel: ${err instanceof Error ? err.message : String(err)}\x1b[0m`);
+      }
+    }
+
     console.error(
       `[mcp] Registered ${skills.length} tool(s): ${skills.map((s) => s.name).join(", ")}`
     );

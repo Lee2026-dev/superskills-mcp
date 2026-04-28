@@ -1,6 +1,6 @@
 {
   "name": "superskills-mcp",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "A universal MCP gateway to expose local CLI skills to AI assistants.",
   "type": "module",
   "author": "wenli",
@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.21.0",
+    "@ngrok/ngrok": "^1.7.0",
     "chokidar": "^5.0.0",
     "express": "^5.1.0",
     "zod": "^3.25.76"
