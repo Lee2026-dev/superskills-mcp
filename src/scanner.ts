@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { parse } from "yaml";
 import { ResolvedSkill, MultiSkillConfig } from "./types.js";
 
 export class SkillScanner {
@@ -45,21 +46,42 @@ export class SkillScanner {
     try {
       const content = fs.readFileSync(skillMdPath, "utf8");
       
-      // Extract name and description from YAML frontmatter or top of file
-      const nameMatch = content.match(/^name:\s*(.+)$/m);
-      if (!nameMatch) {
-        return null;
+      let name = "";
+      let description = "Auto-discovered skill";
+      let input = {};
+
+      const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (frontmatterMatch) {
+        try {
+          const doc = parse(frontmatterMatch[1]);
+          if (doc.name) name = doc.name;
+          if (doc.description) description = doc.description;
+          if (doc.input) input = doc.input;
+        } catch (err) {
+          console.warn(`[mcp] Warning: Failed to parse YAML frontmatter in ${skillMdPath}`);
+        }
       }
 
-      const descMatch = content.match(/^description:\s*(.+)$/m);
-      const name = nameMatch[1].trim();
-      const description = descMatch ? descMatch[1].trim() : "Auto-discovered skill";
+      // Fallback for name/description if not found in YAML
+      if (!name) {
+        const nameMatch = content.match(/^name:\s*(.+)$/m);
+        if (nameMatch) name = nameMatch[1].trim();
+      }
+
+      if (!name) {
+        return null; // A skill must have a name
+      }
+
+      if (description === "Auto-discovered skill" && !frontmatterMatch) {
+        const descMatch = content.match(/^description:\s*(.+)$/m);
+        if (descMatch) description = descMatch[1].trim();
+      }
 
       return {
         name,
         description,
         skillDir,
-        input: {},
+        input,
         timeoutMs: this.config.defaults.timeoutMs,
         maxOutputBytes: this.config.defaults.maxOutputBytes,
         runner: this.config.defaults.runner,
