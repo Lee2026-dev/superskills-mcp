@@ -17,7 +17,7 @@ const LOG_FILE_PATH = path.join(DEFAULT_CONFIG_DIR, "mcp.log");
 const DEFAULT_CONFIG_CONTENT = JSON.stringify({
   server: {
     name: "superskills-mcp",
-    version: "0.6.0",
+    version: "0.6.3",
     transport: "http",
     host: "127.0.0.1",
     port: 8787,
