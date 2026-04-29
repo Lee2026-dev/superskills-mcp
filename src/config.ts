@@ -95,7 +95,8 @@ export function loadConfig(): { global: MultiSkillConfig; skills: ResolvedSkill[
       env: s.env ?? {},
       runner: s.runner ? resolveRunner(s.runner) : defaults.runner,
       timeoutMs: s.timeoutMs ?? defaults.timeoutMs,
-      maxOutputBytes: s.maxOutputBytes ?? defaults.maxOutputBytes
+      maxOutputBytes: s.maxOutputBytes ?? defaults.maxOutputBytes,
+      agentPolicy: s.agentPolicy
     };
   });
 
