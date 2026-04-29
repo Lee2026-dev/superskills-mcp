@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ResolvedSkill, MultiSkillConfig, InputFieldSchema } from "./types.js";
+import { ResolvedSkill, MultiSkillConfig, InputFieldSchema, CliRunnerConfig } from "./types.js";
 
 export class SkillScanner {
   constructor(private config: MultiSkillConfig) {}
@@ -55,9 +55,11 @@ export class SkillScanner {
       const description = descMatch ? descMatch[1].trim() : "Auto-discovered skill";
 
       const input = this.inferInputSchema(skillDir, content);
+      const cliRunner = this.readCliRunner(skillDir);
 
       if (Object.keys(input).length > 0) {
-        console.error(`[mcp] Auto-inferred input for '${name}': ${Object.keys(input).join(", ")}`);
+        const source = cliRunner ? '(CLI runner)' : '(inferred)';
+        console.error(`[mcp] Auto-inferred input for '${name}' ${source}: ${Object.keys(input).join(", ")}`);
       }
 
       return {
@@ -65,6 +67,7 @@ export class SkillScanner {
         description,
         skillDir,
         input,
+        cliRunner,
         timeoutMs: this.config.defaults.timeoutMs,
         maxOutputBytes: this.config.defaults.maxOutputBytes,
         runner: this.config.defaults.runner,
@@ -163,25 +166,33 @@ export class SkillScanner {
   }
 
   /**
-   * Layer 2: Parse from .superskills.json sidecar file.
-   * Place this file in the skill directory to add input schema without
-   * modifying the third-party SKILL.md.
-   *
-   * Format: { "input": { "url": { "type": "string", "description": "..." } } }
+   * Layer 2: Parse input schema from .superskills.json sidecar file.
    */
   private parseFromSidecar(skillDir: string): Record<string, InputFieldSchema> | null {
+    const sidecar = this.readRawSidecar(skillDir);
+    if (!sidecar?.input || Object.keys(sidecar.input).length === 0) return null;
+    return sidecar.input;
+  }
+
+  /**
+   * Read cliRunner (if any) from .superskills.json sidecar.
+   * Called separately from inferInputSchema so both input and cliRunner are extracted.
+   */
+  private readCliRunner(skillDir: string): CliRunnerConfig | undefined {
+    const sidecar = this.readRawSidecar(skillDir);
+    return sidecar?.cliRunner;
+  }
+
+  /** Read and parse .superskills.json, returning raw object or null on failure. */
+  private readRawSidecar(skillDir: string): { input?: Record<string, InputFieldSchema>; cliRunner?: CliRunnerConfig } | null {
     const sidecarPath = path.join(skillDir, ".superskills.json");
     if (!fs.existsSync(sidecarPath)) return null;
-
     try {
-      const raw = JSON.parse(fs.readFileSync(sidecarPath, "utf8"));
-      if (raw.input && typeof raw.input === "object" && Object.keys(raw.input).length > 0) {
-        return raw.input as Record<string, InputFieldSchema>;
-      }
+      return JSON.parse(fs.readFileSync(sidecarPath, "utf8"));
     } catch {
       console.warn(`[mcp] Failed to parse .superskills.json in ${skillDir}`);
+      return null;
     }
-    return null;
   }
 
   /**

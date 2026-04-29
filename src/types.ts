@@ -15,6 +15,25 @@ export interface RunnerConfig {
   args: string[];
 }
 
+/**
+ * CLI Runner 配置：直接将 MCP 参数映射为命令行调用。
+ * 适用于"instruction-based"类 skill（非 JSON stdin/stdout 协议）。
+ *
+ * 占位符规则：
+ *   {skillDir}   → skill 目录绝对路径
+ *   {args.key}   → 对应 MCP 输入参数的值
+ *
+ * optionalArgs: 二元组 [flag, "{args.key}"]
+ *   - 仅当 args.key 有值时才追加到命令行
+ *   - 若值为 "true" 或 "1"，则只追加 flag（布尔开关模式）
+ *   - 否则追加 flag 和值两个 token
+ */
+export interface CliRunnerConfig {
+  command: string;
+  args: string[];
+  optionalArgs?: [string, string][];
+}
+
 /** 单个 skill 的定义（来自 config 文件） */
 export interface SkillDef {
   name: string;
@@ -22,8 +41,10 @@ export interface SkillDef {
   skillDir: string;
   input: Record<string, InputFieldSchema>;
   env?: Record<string, string>;
-  // 可覆盖 defaults 中的 runner
+  // 可覆盖 defaults 中的 runner（JSON stdin/stdout 协议）
   runner?: RunnerConfig;
+  // CLI 直接调用模式（优先级高于 runner）
+  cliRunner?: CliRunnerConfig;
   timeoutMs?: number;
   maxOutputBytes?: number;
 }
@@ -78,6 +99,8 @@ export interface ResolvedSkill {
   input: Record<string, InputFieldSchema>;
   env: Record<string, string>;
   runner: RunnerConfig;
+  /** 若定义了 cliRunner，则跳过 mcp-adapter，直接执行 CLI 命令 */
+  cliRunner?: CliRunnerConfig;
   timeoutMs: number;
   maxOutputBytes: number;
 }
