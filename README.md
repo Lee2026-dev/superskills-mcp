@@ -44,10 +44,10 @@ superskills-mcp init
 
 ### 3. Start the Gateway
 
-Launch the MCP server in the background:
+Launch the MCP server and run it in the background after logging the public URL:
 
 ```bash
-superskills-mcp serve &
+superskills-mcp serve -d
 ```
 
 *(You can verify it is running by typing `superskills-mcp status` or by checking `curl http://127.0.0.1:8787/health`)*
@@ -119,7 +119,7 @@ When you run `superskills-mcp serve`, it will log the public URL. Use `{url}/mcp
 
 `superskills-mcp` 现在内置了一个精美的 Web 控制面板。你可以通过它实时监控技能的调用次数，并随时开启或禁用特定的技能。
 
-1. 确保服务器正在运行 (`superskills-mcp serve &`)。
+1. 确保服务器正在运行 (`superskills-mcp serve -d`)。
 2. 在浏览器中打开：`http://127.0.0.1:8787/dashboard/`
 
 该面板完全集成在 Express 服务器中，无需安装任何额外依赖，即插即用。
@@ -240,7 +240,7 @@ Your global configuration lives at `~/.superskills/mcp-config.json`.
 
 For cloud-based AI like ChatGPT, the server must be exposed to the internet. 
 
-1. Recommended: Use the [Integrated Ngrok Tunneling](#-integrated-ngrok-tunneling).
+1. Recommended: Use the [Integrated Ngrok Tunneling](#-integrated-ngrok-tunneling) by running `superskills-mcp serve -d`.
 2. Alternative: Expose the local port via a persistent [Ngrok](https://ngrok.com/) tunnel manually:
 
 ```bash

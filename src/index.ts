@@ -172,6 +172,65 @@ async function runServe() {
   }
 }
 
+function runServeDaemon() {
+  const args = process.argv.slice(2).filter(a => a !== "--daemon" && a !== "-d");
+  
+  console.error("[mcp] Starting server in background mode...");
+
+  const child = spawn(process.argv[0], [process.argv[1], ...args], {
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+
+  let capturedOutput = "";
+  let isExiting = false;
+  
+  const onData = (data: Buffer) => {
+    if (isExiting) return;
+    const chunk = data.toString();
+    process.stderr.write(chunk);
+    capturedOutput += chunk;
+
+    if (capturedOutput.includes("Public URL:") || capturedOutput.includes("ChatGPT Action URL:")) {
+      isExiting = true;
+      console.error("\n\x1b[32m[mcp] Background server is ready and running.\x1b[0m");
+      console.error("[mcp] Use 'superskills-mcp log' to follow logs.");
+      
+      child.unref();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      process.exit(0);
+    }
+  };
+
+  child.stdout?.on("data", onData);
+  child.stderr?.on("data", onData);
+
+  child.on("error", (err) => {
+    console.error(`[mcp] Failed to start background server: ${err.message}`);
+    process.exit(1);
+  });
+
+  child.on("exit", (code) => {
+    if (!isExiting) {
+      console.error(`[mcp] Background process exited unexpectedly with code ${code}.`);
+      process.exit(code ?? 1);
+    }
+  });
+
+  // Safety timeout
+  setTimeout(() => {
+    if (!isExiting) {
+      console.error("\n[mcp] Timeout: Ngrok URL not detected within 20s.");
+      console.error("[mcp] Checking if server started anyway...");
+      child.unref();
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      process.exit(0);
+    }
+  }, 20000);
+}
+
 function runInit() {
   if (fs.existsSync(DEFAULT_CONFIG_PATH)) {
     console.error(`[mcp] Configuration already exists at ${DEFAULT_CONFIG_PATH}`);
@@ -466,6 +525,7 @@ Options for 'serve' only:
   --transport <type>   'http' or 'stdio'
   --port <number>      Port for HTTP transport
   --host <string>      Host for HTTP transport
+  --daemon, -d         Run in background after logging the public URL (HTTP only)
 `);
 }
 
@@ -484,7 +544,11 @@ async function main() {
       runInit();
       break;
     case "serve":
-      await runServe();
+      if (process.argv.includes("--daemon") || process.argv.includes("-d")) {
+        runServeDaemon();
+      } else {
+        await runServe();
+      }
       break;
     case "add":
       runAdd(process.argv[3]);
