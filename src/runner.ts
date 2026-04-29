@@ -1,5 +1,7 @@
 // src/runner.ts
 import { spawn } from "node:child_process";
+import path from "node:path";
+import os from "node:os";
 import { ResolvedSkill, SkillInput, SkillOutput } from "./types.js";
 
 export class SkillRunnerError extends Error {
@@ -11,7 +13,6 @@ export class SkillRunnerError extends Error {
 
 /**
  * Entry point: routes to CLI mode or adapter (JSON stdin/stdout) mode
- * based on whether skill.cliRunner is defined.
  */
 export async function runSkill(
   skill: ResolvedSkill,
@@ -24,7 +25,7 @@ export async function runSkill(
 }
 
 // ---------------------------------------------------------------------------
-// CLI Mode: maps MCP args → command-line arguments and runs the process directly
+// CLI Mode
 // ---------------------------------------------------------------------------
 
 async function runSkillCli(
@@ -33,21 +34,26 @@ async function runSkillCli(
 ): Promise<string> {
   const cli = skill.cliRunner!;
 
-  /** Substitute {skillDir} and {args.key} placeholders in a template string */
+  /** Substitute placeholders with path normalization and tilde expansion */
   const sub = (tpl: string): string =>
     tpl
       .replace(/\{skillDir\}/g, skill.skillDir)
-      .replace(/\{args\.(\w+)\}/g, (_, key) => String(args[key] ?? ""));
+      .replace(/\{args\.(\w+)\}/g, (_, key) => {
+        let val = String(args[key] ?? "");
+        // Expand tilde
+        if (val.startsWith("~/")) {
+          val = path.join(os.homedir(), val.slice(2));
+        }
+        // Normalize Unicode (NFC) to fix macOS Chinese path mismatch issues
+        return val.normalize("NFC");
+      });
 
-  // Build required positional args
   const resolvedArgs = cli.args.map(sub);
 
-  // Append optional flag-value pairs only when the value is non-empty
   if (cli.optionalArgs) {
     for (const [flag, valueTpl] of cli.optionalArgs) {
       const value = sub(valueTpl);
       if (!value || value === "undefined" || value === "null") continue;
-      // Boolean flag: just add --flag without a value
       if (value === "true" || value === "1") {
         resolvedArgs.push(flag);
       } else {
@@ -56,12 +62,16 @@ async function runSkillCli(
     }
   }
 
-  console.error(`[mcp] CLI execute: ${cli.command} ${resolvedArgs.join(" ")}`);
+  // Quote arguments for logging to make it clear how they are separated
+  const logCmd = [cli.command, ...resolvedArgs]
+    .map(a => a.includes(" ") ? `"${a}"` : a)
+    .join(" ");
+  console.error(`[mcp] CLI execute: ${logCmd}`);
 
   const child = spawn(cli.command, resolvedArgs, {
     cwd: skill.skillDir,
     env: { ...process.env, ...skill.env },
-    shell: false,
+    shell: false, // spawn with array handles spaces automatically
     stdio: ["ignore", "pipe", "pipe"]
   });
 
@@ -104,7 +114,6 @@ async function runSkillCli(
 
   const raw = stdout.toString("utf8").trim();
   if (!raw) {
-    // Some CLI tools write results to stderr and exit 0
     return stderrText || "✅ Done (no output)";
   }
 
@@ -112,16 +121,28 @@ async function runSkillCli(
 }
 
 // ---------------------------------------------------------------------------
-// Adapter Mode: sends JSON to mcp-adapter.ts via stdin, reads JSON from stdout
+// Adapter Mode
 // ---------------------------------------------------------------------------
 
 async function runSkillAdapter(
   skill: ResolvedSkill,
   args: Record<string, unknown>
 ): Promise<string> {
+  // Normalize args for adapter mode too
+  const normalizedArgs: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(args)) {
+    if (typeof v === "string") {
+      let val = v;
+      if (val.startsWith("~/")) val = path.join(os.homedir(), val.slice(2));
+      normalizedArgs[k] = val.normalize("NFC");
+    } else {
+      normalizedArgs[k] = v;
+    }
+  }
+
   const input: SkillInput = {
     tool: skill.name,
-    args,
+    args: normalizedArgs,
     context: {
       skillDir: skill.skillDir,
       skillName: skill.name
@@ -130,10 +151,7 @@ async function runSkillAdapter(
 
   const child = spawn(skill.runner.command, skill.runner.args, {
     cwd: skill.skillDir,
-    env: {
-      ...process.env,
-      ...skill.env
-    },
+    env: { ...process.env, ...skill.env },
     shell: false,
     stdio: ["pipe", "pipe", "pipe"]
   });
@@ -142,9 +160,7 @@ async function runSkillAdapter(
   let stderr = Buffer.alloc(0);
   let killedByOutputLimit = false;
 
-  const timeout = setTimeout(() => {
-    child.kill("SIGKILL");
-  }, skill.timeoutMs);
+  const timeout = setTimeout(() => child.kill("SIGKILL"), skill.timeoutMs);
 
   child.stdout.on("data", (chunk: Buffer) => {
     stdout = Buffer.concat([stdout, chunk]);
@@ -156,9 +172,6 @@ async function runSkillAdapter(
 
   child.stderr.on("data", (chunk: Buffer) => {
     stderr = Buffer.concat([stderr, chunk]);
-    if (stderr.length > skill.maxOutputBytes) {
-      child.kill("SIGKILL");
-    }
   });
 
   child.stdin.write(JSON.stringify(input));
@@ -191,16 +204,11 @@ async function runSkillAdapter(
   return parseSkillOutput(raw);
 }
 
-// ---------------------------------------------------------------------------
-// Shared output parser (handles both JSON protocol and raw text/markdown)
-// ---------------------------------------------------------------------------
-
 function parseSkillOutput(raw: string): string {
   let parsed: SkillOutput | undefined;
   try {
     parsed = JSON.parse(raw) as SkillOutput;
   } catch {
-    // Not JSON → treat as raw Markdown/text
     return raw;
   }
 
