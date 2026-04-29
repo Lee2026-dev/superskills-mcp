@@ -22,6 +22,12 @@ import os from "node:os";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ResolvedSkill, MultiSkillConfig } from "./types.js";
+import {
+  canAccessPath,
+  canRunCommand,
+  canUseTool,
+  policyErrorText
+} from "./policy.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,6 +68,11 @@ function resolveSkillMdContent(content: string, skill: ResolvedSkill): string {
     .replace(/\$\{BUN_X\}/g, runnerCmd)
     .replace(/\{baseDir\}/g, skill.skillDir)
     .replace(/\{skillDir\}/g, skill.skillDir);
+}
+
+function findSkillByName(skills: ResolvedSkill[], skillName?: string): ResolvedSkill | undefined {
+  if (!skillName) return undefined;
+  return skills.find((s) => s.name === skillName);
 }
 
 // ---------------------------------------------------------------------------
@@ -159,12 +170,20 @@ export function registerAgentTools(
     },
     async ({ skill_name }) => {
       const skills = getSkills();
-      const skill = skills.find(s => s.name === skill_name);
+      const skill = findSkillByName(skills, skill_name);
       if (!skill) {
         const names = skills.map(s => s.name).join(", ");
         return {
           isError: true,
           content: [{ type: "text" as const, text: `Skill '${skill_name}' not found. Available: ${names}` }]
+        };
+      }
+
+      const toolDecision = canUseTool("superskills_invoke", { globalConfig: config, skill });
+      if (!toolDecision.ok) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: policyErrorText(toolDecision.reason!) }]
         };
       }
 
@@ -225,9 +244,19 @@ export function registerAgentTools(
       args: z.array(z.string()).optional().describe("Command arguments as an array (handles spaces safely)"),
       cwd: z.string().optional().describe("Working directory. Defaults to the user home directory."),
       env: z.record(z.string()).optional().describe("Extra environment variables to inject"),
-      timeout_ms: z.number().optional().describe("Execution timeout in milliseconds. Default: 120000 (2 min).")
+      timeout_ms: z.number().optional().describe("Execution timeout in milliseconds. Default: 120000 (2 min)."),
+      skill_name: z.string().optional().describe("Optional skill context used to apply skill-specific agent policy")
     },
-    async ({ command, args = [], cwd, env = {}, timeout_ms = 120000 }) => {
+    async ({ command, args = [], cwd, env = {}, timeout_ms = 120000, skill_name }) => {
+      const skills = getSkills();
+      const skill = findSkillByName(skills, skill_name);
+      const commandDecision = canRunCommand(command, { globalConfig: config, skill });
+      if (!commandDecision.ok) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: policyErrorText(commandDecision.reason!) }]
+        };
+      }
       const resolvedCwd = cwd ? resolvePath(cwd) : os.homedir();
       const resolvedArgs = args.map(a => {
         let v = a;
@@ -278,9 +307,20 @@ export function registerAgentTools(
     "Read the full content of any local file. Supports ~ paths and Chinese/Unicode filenames.",
     {
       path: z.string().describe("Absolute or ~ path to the file, e.g. ~/Downloads/article.md"),
-      encoding: z.enum(["utf8", "base64"]).optional().describe("File encoding. Default: utf8")
+      encoding: z.enum(["utf8", "base64"]).optional().describe("File encoding. Default: utf8"),
+      skill_name: z.string().optional().describe("Optional skill context used to apply skill-specific agent policy")
     },
-    async ({ path: filePath, encoding = "utf8" }) => {
+    async ({ path: filePath, encoding = "utf8", skill_name }) => {
+      const skills = getSkills();
+      const skill = findSkillByName(skills, skill_name);
+      const decision = canAccessPath("superskills_read_file", filePath, { globalConfig: config, skill });
+      if (!decision.ok) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: policyErrorText(decision.reason!) }]
+        };
+      }
+
       const absPath = resolvePath(filePath);
       if (!fs.existsSync(absPath)) {
         return {
@@ -319,9 +359,20 @@ export function registerAgentTools(
     {
       path: z.string().describe("Absolute or ~ path to write to"),
       content: z.string().describe("Content to write to the file"),
-      append: z.boolean().optional().describe("If true, append to existing file instead of overwriting. Default: false")
+      append: z.boolean().optional().describe("If true, append to existing file instead of overwriting. Default: false"),
+      skill_name: z.string().optional().describe("Optional skill context used to apply skill-specific agent policy")
     },
-    async ({ path: filePath, content, append = false }) => {
+    async ({ path: filePath, content, append = false, skill_name }) => {
+      const skills = getSkills();
+      const skill = findSkillByName(skills, skill_name);
+      const decision = canAccessPath("superskills_write_file", filePath, { globalConfig: config, skill });
+      if (!decision.ok) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: policyErrorText(decision.reason!) }]
+        };
+      }
+
       const absPath = resolvePath(filePath);
       try {
         fs.mkdirSync(path.dirname(absPath), { recursive: true });
@@ -352,9 +403,20 @@ export function registerAgentTools(
     {
       path: z.string().describe("Absolute or ~ path to the directory"),
       recursive: z.boolean().optional().describe("If true, list recursively. Default: false"),
-      filter: z.string().optional().describe("File extension filter, e.g. '.md', '.ts'. Default: all files")
+      filter: z.string().optional().describe("File extension filter, e.g. '.md', '.ts'. Default: all files"),
+      skill_name: z.string().optional().describe("Optional skill context used to apply skill-specific agent policy")
     },
-    async ({ path: dirPath, recursive = false, filter }) => {
+    async ({ path: dirPath, recursive = false, filter, skill_name }) => {
+      const skills = getSkills();
+      const skill = findSkillByName(skills, skill_name);
+      const decision = canAccessPath("superskills_list_dir", dirPath, { globalConfig: config, skill });
+      if (!decision.ok) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: policyErrorText(decision.reason!) }]
+        };
+      }
+
       const absPath = resolvePath(dirPath);
       if (!fs.existsSync(absPath)) {
         return {
@@ -425,18 +487,24 @@ export function registerAgentTools(
       keys: z.array(z.string()).optional().describe("Optional: only return these specific keys instead of all")
     },
     async ({ skill_name, keys }) => {
+      const skills = getSkills();
+      const skill = findSkillByName(skills, skill_name);
+      const decision = canUseTool("superskills_env", { globalConfig: config, skill });
+      if (!decision.ok) {
+        return {
+          isError: true,
+          content: [{ type: "text" as const, text: policyErrorText(decision.reason!) }]
+        };
+      }
+
       const candidatePaths: string[] = [
         path.join(process.cwd(), ".baoyu-skills", ".env"),
         path.join(os.homedir(), ".baoyu-skills", ".env")
       ];
 
-      if (skill_name) {
-        const skills = getSkills();
-        const skill = skills.find(s => s.name === skill_name);
-        if (skill) {
-          candidatePaths.unshift(path.join(skill.skillDir, ".env"));
-          candidatePaths.unshift(path.join(skill.skillDir, "..", ".env"));
-        }
+      if (skill) {
+        candidatePaths.unshift(path.join(skill.skillDir, ".env"));
+        candidatePaths.unshift(path.join(skill.skillDir, "..", ".env"));
       }
 
       const envVars = readDotEnv(candidatePaths);
