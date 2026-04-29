@@ -190,7 +190,7 @@ Your global configuration lives at `~/.superskills/mcp-config.json`.
 {
   "server": {
     "name": "superskills-mcp",
-    "version": "0.6.3",
+    "version": "0.6.4",
     "transport": "http",
     "host": "127.0.0.1",
     "port": 8787,
