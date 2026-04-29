@@ -1,6 +1,6 @@
 {
   "name": "superskills-mcp",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "A universal MCP gateway to expose local CLI skills to AI assistants.",
   "type": "module",
   "author": "wenli",
