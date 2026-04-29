@@ -13,6 +13,7 @@ Instead of writing a custom MCP server for every small script you create, `super
 ## ✨ Key Features
 
 - 🌍 **Global Installation:** Run it from anywhere on your system via the `superskills-mcp` CLI.
+- 🤖 **Agent Mode (New!):** Empower ChatGPT to "think" and "act" by exposing raw primitives (`run`, `read`, `write`) so it can follow a skill's `SKILL.md` step-by-step.
 - 🔌 **Dynamic Tool Registration:** Add or remove skills dynamically without touching the server code.
 - 🔄 **Hot Reloading:** Apply configuration changes on the fly with zero downtime using `superskills-mcp reload`.
 - 📝 **Native Logging:** Built-in background daemon management and real-time log tailing.
@@ -51,6 +52,29 @@ superskills-mcp serve -d
 ```
 
 *(You can verify it is running by typing `superskills-mcp status` or by checking `curl http://127.0.0.1:8787/health`)*
+
+---
+
+## 🤖 Agent Mode (Infrastructure Tools)
+
+Traditional MCP tools are "black boxes"—the AI calls a function and gets a result. However, many complex skills (like `baoyu-post-to-wechat`) are designed as **instruction-based agents**. 
+
+`superskills-mcp` now provides **Agent Mode**, a set of infrastructure tools that give the AI the raw primitives needed to follow a skill's `SKILL.md` instructions manually.
+
+### Available Agent Tools:
+
+| Tool | Description |
+|---|---|
+| `superskills_list_skills` | List all registered skills, their directories, and descriptions. |
+| `superskills_invoke` | Read a skill's `SKILL.md` (with resolved placeholders) to understand its instructions. |
+| `superskills_run` | **Execute any shell command** (e.g., `bun`, `python`, `bash`) and return output. |
+| `superskills_read_file` | Read the content of any local file. |
+| `superskills_write_file` | Write or append content to a local file. |
+| `superskills_list_dir` | List contents of any local directory. |
+| `superskills_env` | Read credentials from `.baoyu-skills/.env` files. |
+
+**How to use:**
+Simply tell ChatGPT: *"Invoke the skill 'baoyu_post_to_wechat' and follow its instructions to publish this file."* ChatGPT will then read the manual, check your credentials, and run the necessary scripts step-by-step.
 
 ---
 
@@ -135,7 +159,7 @@ You can use the CLI to dynamically attach a new local skill:
 ```bash
 superskills-mcp add /path/to/your/custom_skill
 ```
-*Note: This command extracts the skill name and description, but sets the `input` schema to `{}`. If your skill requires specific arguments (like `url` or `query`), open `~/.superskills/mcp-config.json` and define the JSON schema under the `input` key.*
+*Note: This command extracts the skill name and description. `superskills-mcp` will attempt to automatically infer the input schema from the script source code or a `.superskills.json` sidecar file.*
 
 ### Removing Skills
 
@@ -190,7 +214,7 @@ Your global configuration lives at `~/.superskills/mcp-config.json`.
 {
   "server": {
     "name": "superskills-mcp",
-    "version": "0.6.4",
+    "version": "0.6.7",
     "transport": "http",
     "host": "127.0.0.1",
     "port": 8787,
