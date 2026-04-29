@@ -34,6 +34,24 @@ export interface CliRunnerConfig {
   optionalArgs?: [string, string][];
 }
 
+export interface ToolPolicyMap {
+  superskills_invoke?: boolean;
+  superskills_run?: boolean;
+  superskills_read_file?: boolean;
+  superskills_write_file?: boolean;
+  superskills_list_dir?: boolean;
+  superskills_env?: boolean;
+}
+
+export interface AgentPolicy {
+  enabledTools?: ToolPolicyMap;
+  allowedPaths?: string[];
+  allowedCommands?: string[];
+  blockedCommands?: string[];
+  allowEnv?: boolean;
+  allowSkillInvoke?: boolean;
+}
+
 /** 单个 skill 的定义（来自 config 文件） */
 export interface SkillDef {
   name: string;
@@ -47,6 +65,7 @@ export interface SkillDef {
   cliRunner?: CliRunnerConfig;
   timeoutMs?: number;
   maxOutputBytes?: number;
+  agentPolicy?: AgentPolicy;
 }
 
 /** 全局 server 配置 */
@@ -88,6 +107,7 @@ export interface MultiSkillConfig {
   };
   /** 内置本地笔记工具配置 */
   notes?: NotesConfig;
+  agentPolicy?: AgentPolicy;
   skills: SkillDef[];
 }
 
@@ -103,6 +123,7 @@ export interface ResolvedSkill {
   cliRunner?: CliRunnerConfig;
   timeoutMs: number;
   maxOutputBytes: number;
+  agentPolicy?: AgentPolicy;
 }
 
 /** adapter stdin 协议 */
