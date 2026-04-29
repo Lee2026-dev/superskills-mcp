@@ -76,6 +76,46 @@ Traditional MCP tools are "black boxes"—the AI calls a function and gets a res
 **How to use:**
 Simply tell ChatGPT: *"Invoke the skill 'baoyu_post_to_wechat' and follow its instructions to publish this file."* ChatGPT will then read the manual, check your credentials, and run the necessary scripts step-by-step.
 
+## 🔐 Agent Policy
+
+When exposing Agent Mode over HTTP or ngrok, you should restrict what the model can read, write, and execute.
+
+Add `agentPolicy` to your config:
+
+```json
+{
+  "agentPolicy": {
+    "enabledTools": {
+      "superskills_invoke": true,
+      "superskills_run": true,
+      "superskills_read_file": true,
+      "superskills_write_file": false,
+      "superskills_list_dir": true,
+      "superskills_env": false
+    },
+    "allowedPaths": [
+      "{notesDir}",
+      "~/Documents/superskills-workspace"
+    ],
+    "allowedCommands": ["bun", "node", "python3"],
+    "blockedCommands": ["rm", "sudo", "ssh", "scp", "curl", "wget", "git"],
+    "allowEnv": false,
+    "allowSkillInvoke": true
+  }
+}
+```
+
+Skill-level `agentPolicy` entries inherit and append to the global policy. They can add paths and commands, but they should not weaken global safety rules.
+
+### Recommended remote profile
+
+For long-running ChatGPT-facing deployments:
+- enable `superskills_invoke`, `superskills_read_file`, `superskills_list_dir`
+- disable `superskills_write_file` unless needed
+- disable `superskills_env` by default
+- keep `allowedCommands` minimal
+- use workspace-only or notes-only `allowedPaths`
+
 ---
 
 ## 🛠️ CLI Reference
