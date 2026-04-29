@@ -4,6 +4,16 @@ import path from "node:path";
 import os from "node:os";
 import { ResolvedSkill, SkillInput, SkillOutput } from "./types.js";
 
+function summarizeArgs(args: Record<string, unknown>): string {
+  return JSON.stringify(args, (_key, value) => typeof value === "string" && value.length > 200
+    ? `${value.slice(0, 197)}...`
+    : value);
+}
+
+function formatLogChunk(chunk: Buffer): string {
+  return chunk.toString("utf8").replace(/\s+/g, " ").trim().slice(0, 300);
+}
+
 export class SkillRunnerError extends Error {
   constructor(message: string) {
     super(message);
@@ -66,6 +76,8 @@ async function runSkillCli(
   const logCmd = [cli.command, ...resolvedArgs]
     .map(a => a.includes(" ") ? `"${a}"` : a)
     .join(" ");
+  console.error(`[tool] received args for ${skill.name}: ${summarizeArgs(args)}`);
+  console.error(`[tool] spawning child for ${skill.name}: ${logCmd}`);
   console.error(`[mcp] CLI execute: ${logCmd}`);
 
   const child = spawn(cli.command, resolvedArgs, {
@@ -79,7 +91,11 @@ async function runSkillCli(
   let stderr = Buffer.alloc(0);
   let killedByOutputLimit = false;
 
-  const timeout = setTimeout(() => child.kill("SIGKILL"), skill.timeoutMs);
+  console.error(`[tool] child spawned pid=${child.pid ?? "unknown"} for ${skill.name}`);
+  const timeout = setTimeout(() => {
+    console.error(`[tool] child timeout after ${skill.timeoutMs}ms for ${skill.name}`);
+    child.kill("SIGKILL");
+  }, skill.timeoutMs);
 
   child.stdout.on("data", (chunk: Buffer) => {
     stdout = Buffer.concat([stdout, chunk]);
@@ -91,12 +107,20 @@ async function runSkillCli(
 
   child.stderr.on("data", (chunk: Buffer) => {
     stderr = Buffer.concat([stderr, chunk]);
+    const preview = formatLogChunk(chunk);
+    if (preview) console.error(`[tool] child stderr chunk: ${preview}`);
   });
 
   const exit = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
     (resolve, reject) => {
-      child.on("error", reject);
-      child.on("close", (code, signal) => resolve({ code, signal }));
+      child.on("error", (err) => {
+        console.error(`[tool] child process error for ${skill.name}: ${err.message}`);
+        reject(err);
+      });
+      child.on("close", (code, signal) => {
+        console.error(`[tool] child exited code=${code ?? "null"} signal=${signal ?? "null"} for ${skill.name}`);
+        resolve({ code, signal });
+      });
     }
   ).finally(() => clearTimeout(timeout));
 

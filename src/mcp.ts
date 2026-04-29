@@ -12,10 +12,25 @@ import { registerNotesTools } from "./notes.js";
 import { registerAgentTools } from "./agent.js";
 
 
+function extractArgKeys(templates: string[]): Set<string> {
+  const keys = new Set<string>();
+  for (const template of templates) {
+    for (const match of template.matchAll(/\{args\.(\w+)\}/g)) {
+      keys.add(match[1]!);
+    }
+  }
+  return keys;
+}
+
 /** 将 InputFieldSchema 定义转换为 Zod schema shape */
-function buildZodShape(input: ResolvedSkill["input"]): ZodRawShape {
+function buildZodShape(skill: ResolvedSkill): ZodRawShape {
   const shape: ZodRawShape = {};
-  for (const [key, field] of Object.entries(input)) {
+  const requiredCliArgs = skill.cliRunner ? extractArgKeys(skill.cliRunner.args) : new Set<string>();
+  const optionalCliArgs = skill.cliRunner
+    ? extractArgKeys(skill.cliRunner.optionalArgs?.map(([, value]) => value) ?? [])
+    : new Set<string>();
+
+  for (const [key, field] of Object.entries(skill.input)) {
     let schema: z.ZodTypeAny;
     switch (field.type) {
       case "number":
@@ -34,6 +49,11 @@ function buildZodShape(input: ResolvedSkill["input"]): ZodRawShape {
           schema = s;
         }
       }
+    }
+
+    const isOptionalCliArg = skill.cliRunner && optionalCliArgs.has(key) && !requiredCliArgs.has(key);
+    if (isOptionalCliArg) {
+      schema = schema.optional();
     }
     if (field.description) schema = schema.describe(field.description);
     shape[key] = schema;
@@ -54,7 +74,7 @@ export function createMcpServer(
   const enabledSkills = registry ? skills.filter(s => registry.get(s.name)?.enabled !== false) : skills;
 
   for (const skill of enabledSkills) {
-    const shape = buildZodShape(skill.input);
+    const shape = buildZodShape(skill);
     server.tool(skill.name, skill.description, shape, async (toolArgs) => {
       if (registry) {
         const meta = registry.get(skill.name);
