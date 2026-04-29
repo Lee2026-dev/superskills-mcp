@@ -9,6 +9,7 @@ import { MultiSkillConfig, ResolvedSkill, DashboardRegistry } from "./types.js";
 import { runSkill } from "./runner.js";
 import { createDashboardRouter } from "./dashboard.js";
 import { registerNotesTools } from "./notes.js";
+import { registerAgentTools } from "./agent.js";
 
 
 /** 将 InputFieldSchema 定义转换为 Zod schema shape */
@@ -81,6 +82,10 @@ export function createMcpServer(
   if (globalConfig.notes) {
     registerNotesTools(server, globalConfig.notes);
   }
+
+  // Register agent infrastructure tools (superskills_invoke, superskills_run, etc.)
+  // These let ChatGPT fully execute instruction-based skills step by step
+  registerAgentTools(server, globalConfig, () => enabledSkills);
 
   return server;
 }
